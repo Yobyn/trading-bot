@@ -14,14 +14,21 @@ class DataFetcher:
         
         # Initialize exchange
         exchange_class = getattr(ccxt, self.exchange_name)
-        self.exchange = exchange_class({
+        
+        # Configure exchange settings
+        exchange_config = {
             'apiKey': self.api_key,
             'secret': self.secret,
-            'sandbox': config.paper_trading,
             'enableRateLimit': True,
-        })
+        }
         
-        # Load markets
+        # Only enable sandbox for exchanges that support it
+        if config.paper_trading and hasattr(exchange_class, 'sandbox'):
+            exchange_config['sandbox'] = True
+        
+        self.exchange = exchange_class(exchange_config)
+        
+        # Test connection
         try:
             self.exchange.load_markets()
             logger.info(f"Connected to {self.exchange_name}")

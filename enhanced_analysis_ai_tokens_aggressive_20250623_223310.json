@@ -1,0 +1,104 @@
+[
+  {
+    "asset": {
+      "symbol": "FET/USDT",
+      "name": "Fetch.ai",
+      "exchange": "binance",
+      "allocation": 0.25
+    },
+    "market_data": {
+      "symbol": "FET/USDT",
+      "current_price": 0.646,
+      "price_change_24h": 16.187,
+      "volume_24h": 24663804.5021,
+      "high_24h": 0.648,
+      "low_24h": 0.555,
+      "timestamp": "2025-06-23T22:32:56.697487",
+      "current_position": {
+        "side": "None",
+        "size": 0,
+        "entry_price": 0,
+        "unrealized_pnl": 0
+      },
+      "portfolio_value": 10000.0,
+      "rsi": 67.93893129770993,
+      "macd": 0.0076188927028501,
+      "macd_signal": 0.0030028042113771796,
+      "macd_histogram": 0.0046160884914729205,
+      "ma_20": 0.60185,
+      "ma_50": 0.5957399999999999,
+      "bb_upper": 0.6312530073649852,
+      "bb_middle": 0.60185,
+      "bb_lower": 0.5724469926350148,
+      "volume_sma": 1670382.45,
+      "price_above_ma20": "True",
+      "price_above_ma50": "True"
+    },
+    "decision": {
+      "action": "BUY",
+      "reason": "Action: \nReason: The current price of FET/USDT has increased by 16.187% in the last 24 hours, indicating a strong upward trend. The RSI and MACD are both bullish, with the RSI above 60 and the MACD above 0. The moving averages are also bullish, with the 20-day moving average above the 50-day moving average. These technical indicators suggest that the current price is likely to continue rising, making a long position a profitable opportunity.",
+      "confidence": 0.8,
+      "timestamp": "2025-06-23T22:32:56.697487"
+    },
+    "position_calculation": {
+      "target_allocation": 0.25,
+      "target_position_value": 2500.0,
+      "max_position_value": 2000.0,
+      "actual_position_value": 2000.0,
+      "quantity": 3095.9752321981423,
+      "risk_amount": 100.0
+    },
+    "timestamp": "2025-06-23T22:33:01.777904"
+  },
+  {
+    "asset": {
+      "symbol": "BAT/USDT",
+      "name": "Basic Attention Token",
+      "exchange": "binance",
+      "allocation": 0.15
+    },
+    "market_data": {
+      "symbol": "BAT/USDT",
+      "current_price": 0.1198,
+      "price_change_24h": 9.506,
+      "volume_24h": 2027042.0086,
+      "high_24h": 0.1201,
+      "low_24h": 0.1092,
+      "timestamp": "2025-06-23T22:33:04.321091",
+      "current_position": {
+        "side": "None",
+        "size": 0,
+        "entry_price": 0,
+        "unrealized_pnl": 0
+      },
+      "portfolio_value": 10000.0,
+      "rsi": 68.42105263157896,
+      "macd": 0.0012206312671530772,
+      "macd_signal": 0.0006774070929928809,
+      "macd_histogram": 0.0005432241741601964,
+      "ma_20": 0.11524999999999999,
+      "ma_50": 0.114252,
+      "bb_upper": 0.11956277173056969,
+      "bb_middle": 0.11524999999999999,
+      "bb_lower": 0.1109372282694303,
+      "volume_sma": 755503.65,
+      "price_above_ma20": "True",
+      "price_above_ma50": "True"
+    },
+    "decision": {
+      "action": "BUY",
+      "reason": "Based on the provided market data analysis, my trading decision is to  (enter a long position) with a size of $10,000. The reasoning behind this decision is that the current price of BAT/USDT is undervalued based on its 24-hour price change of 9.506% and volume of 2027042.0086, which suggests a potential upswing in the near future. Additionally, the RSI and MACD indicators are both bullish, with the RSI above 68 and the MACD above 0.12, indicating a strong buying pressure. Finally, the moving averages (20 and 50-day) are both trending upwards, which provides further evidence of an impending price increase.",
+      "confidence": 0.8,
+      "timestamp": "2025-06-23T22:33:04.321091"
+    },
+    "position_calculation": {
+      "target_allocation": 0.15,
+      "target_position_value": 1500.0,
+      "max_position_value": 2000.0,
+      "actual_position_value": 1500.0,
+      "quantity": 12520.868113522538,
+      "risk_amount": 75.0
+    },
+    "timestamp": "2025-06-23T22:33:10.643435"
+  }
+]

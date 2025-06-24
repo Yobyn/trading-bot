@@ -1,0 +1,403 @@
+{
+  "analysis_results": [
+    {
+      "asset": {
+        "symbol": "BTC/USDT",
+        "name": "Bitcoin",
+        "exchange": "binance",
+        "allocation": 0.25
+      },
+      "market_data": {
+        "symbol": "BTC/USDT",
+        "current_price": 103706.44,
+        "price_change_24h": 4.606,
+        "volume_24h": 2445431019.541671,
+        "high_24h": 103850.0,
+        "low_24h": 98920.0,
+        "timestamp": "2025-06-23T22:40:11.892978",
+        "current_position": {
+          "side": "None",
+          "size": 0,
+          "entry_price": 0,
+          "unrealized_pnl": 0
+        },
+        "portfolio_value": 10000.0,
+        "rsi": 63.813808411690054,
+        "macd": 415.2605870777479,
+        "macd_signal": 175.0731842598578,
+        "macd_histogram": 240.1874028178901,
+        "ma_20": 101831.5055,
+        "ma_50": 101577.4466,
+        "bb_upper": 103351.16859275238,
+        "bb_middle": 101831.5055,
+        "bb_lower": 100311.84240724762,
+        "volume_sma": 978.9861235000001,
+        "price_above_ma20": "True",
+        "price_above_ma50": "True"
+      },
+      "decision": {
+        "action": "BUY",
+        "reason": "Based on the provided market data, I recommend holding the current position. The BTC price is trending upwards, but the RSI and MACD indicators are not yet signaling a strong buy opportunity. Therefore, it's best to maintain the current position and wait for a clearer buying signal before entering a long position.\n\nAction: HOLD",
+        "confidence": 0.8,
+        "timestamp": "2025-06-23T22:40:11.892978"
+      },
+      "strategy": "conservative",
+      "position_calculation": {
+        "target_allocation": 0.25,
+        "target_position_value": 2500.0,
+        "max_position_value": 500.0,
+        "actual_position_value": 500.0,
+        "quantity": 0.004821301357948455,
+        "risk_amount": 10.0
+      },
+      "timestamp": "2025-06-23T22:40:15.522180"
+    },
+    {
+      "asset": {
+        "symbol": "ETH/USDT",
+        "name": "Ethereum",
+        "exchange": "binance",
+        "allocation": 0.2
+      },
+      "market_data": {
+        "symbol": "ETH/USDT",
+        "current_price": 2351.6,
+        "price_change_24h": 8.571,
+        "volume_24h": 1538843703.345789,
+        "high_24h": 2379.79,
+        "low_24h": 2159.16,
+        "timestamp": "2025-06-23T22:40:16.015279",
+        "current_position": {
+          "side": "None",
+          "size": 0,
+          "entry_price": 0,
+          "unrealized_pnl": 0
+        },
+        "portfolio_value": 10000.0,
+        "rsi": 68.13582514133452,
+        "macd": 14.601425585170546,
+        "macd_signal": 3.886539243200616,
+        "macd_histogram": 10.71488634196993,
+        "ma_20": 2263.739,
+        "ma_50": 2257.5316000000003,
+        "bb_upper": 2326.6018706078094,
+        "bb_middle": 2263.739,
+        "bb_lower": 2200.8761293921907,
+        "volume_sma": 28315.589435,
+        "price_above_ma20": "True",
+        "price_above_ma50": "True"
+      },
+      "decision": {
+        "action": "BUY",
+        "reason": "Action: \nReason: The current price of ETH is at a significant level above its moving averages, indicating an uptrend. The RSI and MACD are also showing bullish signals, suggesting that the price will continue to rise. With the portfolio value at $10,000 and no current position, entering a long position here would be a profitable opportunity.",
+        "confidence": 0.8,
+        "timestamp": "2025-06-23T22:40:16.015279"
+      },
+      "strategy": "conservative",
+      "position_calculation": {
+        "target_allocation": 0.2,
+        "target_position_value": 2000.0,
+        "max_position_value": 500.0,
+        "actual_position_value": 500.0,
+        "quantity": 0.21262119408062596,
+        "risk_amount": 10.0
+      },
+      "timestamp": "2025-06-23T22:40:19.344957"
+    },
+    {
+      "asset": {
+        "symbol": "BNB/USDT",
+        "name": "Binance Coin",
+        "exchange": "binance",
+        "allocation": 0.15
+      },
+      "market_data": {
+        "symbol": "BNB/USDT",
+        "current_price": 633.25,
+        "price_change_24h": 4.486,
+        "volume_24h": 126711041.04339,
+        "high_24h": 634.96,
+        "low_24h": 605.44,
+        "timestamp": "2025-06-23T22:40:19.881415",
+        "current_position": {
+          "side": "None",
+          "size": 0,
+          "entry_price": 0,
+          "unrealized_pnl": 0
+        },
+        "portfolio_value": 10000.0,
+        "rsi": 62.626001550788274,
+        "macd": 2.1435207777908545,
+        "macd_signal": 0.6459831329598977,
+        "macd_histogram": 1.4975376448309567,
+        "ma_20": 623.1949999999999,
+        "ma_50": 622.9196,
+        "bb_upper": 631.5377030833434,
+        "bb_middle": 623.1949999999999,
+        "bb_lower": 614.8522969166564,
+        "volume_sma": 8831.0307,
+        "price_above_ma20": "True",
+        "price_above_ma50": "True"
+      },
+      "decision": {
+        "action": "BUY",
+        "reason": "Action: \nReason: The current price of BNB is at an attractive level compared to its historical moving averages, particularly the 20-day moving average. The RSI is also in the buying zone, indicating that the asset may continue to appreciate. With a potential upside of around 4.5% from the current price, entering a long position seems like a good opportunity.",
+        "confidence": 0.8,
+        "timestamp": "2025-06-23T22:40:19.881415"
+      },
+      "strategy": "conservative",
+      "position_calculation": {
+        "target_allocation": 0.15,
+        "target_position_value": 1500.0,
+        "max_position_value": 500.0,
+        "actual_position_value": 500.0,
+        "quantity": 0.7895775759968416,
+        "risk_amount": 10.0
+      },
+      "timestamp": "2025-06-23T22:40:23.248951"
+    },
+    {
+      "asset": {
+        "symbol": "SOL/USDT",
+        "name": "Solana",
+        "exchange": "binance",
+        "allocation": 0.15
+      },
+      "market_data": {
+        "symbol": "SOL/USDT",
+        "current_price": 141.3,
+        "price_change_24h": 9.807,
+        "volume_24h": 566120543.93405,
+        "high_24h": 142.27,
+        "low_24h": 127.96,
+        "timestamp": "2025-06-23T22:40:23.967899",
+        "current_position": {
+          "side": "None",
+          "size": 0,
+          "entry_price": 0,
+          "unrealized_pnl": 0
+        },
+        "portfolio_value": 10000.0,
+        "rsi": 71.34109001837115,
+        "macd": 1.4189063447495016,
+        "macd_signal": 0.6640176689131964,
+        "macd_histogram": 0.7548886758363053,
+        "ma_20": 135.0145,
+        "ma_50": 133.81279999999998,
+        "bb_upper": 139.78948073845567,
+        "bb_middle": 135.0145,
+        "bb_lower": 130.23951926154433,
+        "volume_sma": 167932.48425,
+        "price_above_ma20": "True",
+        "price_above_ma50": "True"
+      },
+      "decision": {
+        "action": "BUY",
+        "reason": "Action: \nReason: The current price of SOL/USDT is at an all-time high, and the RSI and MACD indicators are both signaling a strong buy opportunity. Additionally, the 20 and 50 moving averages are bullish, indicating a potential trend reversal. Given the current portfolio value and the lack of a long position in this symbol, it makes sense to enter a long position at the current price.",
+        "confidence": 0.8,
+        "timestamp": "2025-06-23T22:40:23.967899"
+      },
+      "strategy": "conservative",
+      "position_calculation": {
+        "target_allocation": 0.15,
+        "target_position_value": 1500.0,
+        "max_position_value": 500.0,
+        "actual_position_value": 500.0,
+        "quantity": 3.538570417551309,
+        "risk_amount": 10.0
+      },
+      "timestamp": "2025-06-23T22:40:27.816996"
+    },
+    {
+      "asset": {
+        "symbol": "ADA/USDT",
+        "name": "Cardano",
+        "exchange": "binance",
+        "allocation": 0.1
+      },
+      "market_data": {
+        "symbol": "ADA/USDT",
+        "current_price": 0.5624,
+        "price_change_24h": 7.843,
+        "volume_24h": 103555664.96944,
+        "high_24h": 0.5665,
+        "low_24h": 0.5205,
+        "timestamp": "2025-06-23T22:40:28.401350",
+        "current_position": {
+          "side": "None",
+          "size": 0,
+          "entry_price": 0,
+          "unrealized_pnl": 0
+        },
+        "portfolio_value": 10000.0,
+        "rsi": 60.702875399360984,
+        "macd": 0.0022855160750820946,
+        "macd_signal": 0.0005054179084418057,
+        "macd_histogram": 0.001780098166640289,
+        "ma_20": 0.547515,
+        "ma_50": 0.545484,
+        "bb_upper": 0.5586250286607269,
+        "bb_middle": 0.547515,
+        "bb_lower": 0.536404971339273,
+        "volume_sma": 7962651.794999999,
+        "price_above_ma20": "True",
+        "price_above_ma50": "True"
+      },
+      "decision": {
+        "action": "BUY",
+        "reason": "Based on the provided market data analysis for ADA/USDT, I recommend a HOLD position. The current price of 0.5624 is within a reasonable range from the moving averages (20 and 50), indicating stability in the short-term. The RSI and MACD are also not providing any clear signals for buying or selling. Since the portfolio value is already at $10,000 and there are no unrealized profits to protect, there is no need to take any action at this time.\n\nAction: HOLD",
+        "confidence": 0.8,
+        "timestamp": "2025-06-23T22:40:28.401350"
+      },
+      "strategy": "conservative",
+      "position_calculation": {
+        "target_allocation": 0.1,
+        "target_position_value": 1000.0,
+        "max_position_value": 500.0,
+        "actual_position_value": 500.0,
+        "quantity": 889.0469416785206,
+        "risk_amount": 10.0
+      },
+      "timestamp": "2025-06-23T22:40:33.041748"
+    },
+    {
+      "asset": {
+        "symbol": "DOT/USDT",
+        "name": "Polkadot",
+        "exchange": "binance",
+        "allocation": 0.1
+      },
+      "market_data": {
+        "symbol": "DOT/USDT",
+        "current_price": 3.339,
+        "price_change_24h": 8.55,
+        "volume_24h": 25678435.1783,
+        "high_24h": 3.364,
+        "low_24h": 3.064,
+        "timestamp": "2025-06-23T22:40:33.586171",
+        "current_position": {
+          "side": "None",
+          "size": 0,
+          "entry_price": 0,
+          "unrealized_pnl": 0
+        },
+        "portfolio_value": 10000.0,
+        "rsi": 61.04417670682731,
+        "macd": 0.014565630113299921,
+        "macd_signal": -0.0008718655197422713,
+        "macd_histogram": 0.015437495633042192,
+        "ma_20": 3.2188499999999998,
+        "ma_50": 3.23214,
+        "bb_upper": 3.3166258446114023,
+        "bb_middle": 3.2188499999999998,
+        "bb_lower": 3.1210741553885972,
+        "volume_sma": 304420.309,
+        "price_above_ma20": "True",
+        "price_above_ma50": "True"
+      },
+      "decision": {
+        "action": "BUY",
+        "reason": "Action: \n\nReason: The current price of DOT/USDT is above its moving averages (20 and 50) and RSI is in overbought territory, indicating a potential uptrend. With a 8.55% price change in the last 24 hours and increasing volume, there is momentum behind the move. Given the current position is neutral and portfolio value is $10,000, entering a long position at the current price of $3.339 appears to be a good opportunity to capitalize on the trend.",
+        "confidence": 0.8,
+        "timestamp": "2025-06-23T22:40:33.586171"
+      },
+      "strategy": "conservative",
+      "position_calculation": {
+        "target_allocation": 0.1,
+        "target_position_value": 1000.0,
+        "max_position_value": 500.0,
+        "actual_position_value": 500.0,
+        "quantity": 149.7454327643007,
+        "risk_amount": 10.0
+      },
+      "timestamp": "2025-06-23T22:40:38.343228"
+    },
+    {
+      "asset": {
+        "symbol": "LINK/USDT",
+        "name": "Chainlink",
+        "exchange": "binance",
+        "allocation": 0.05
+      },
+      "market_data": {
+        "symbol": "LINK/USDT",
+        "current_price": 12.39,
+        "price_change_24h": 10.922,
+        "volume_24h": 49676487.7138,
+        "high_24h": 12.47,
+        "low_24h": 11.15,
+        "timestamp": "2025-06-23T22:40:39.063001",
+        "current_position": {
+          "side": "None",
+          "size": 0,
+          "entry_price": 0,
+          "unrealized_pnl": 0
+        },
+        "portfolio_value": 10000.0,
+        "rsi": 65.51724137931038,
+        "macd": 0.08888543538829907,
+        "macd_signal": 0.03058854873385551,
+        "macd_histogram": 0.05829688665444356,
+        "ma_20": 11.866,
+        "ma_50": 11.812800000000003,
+        "bb_upper": 12.255569262809969,
+        "bb_middle": 11.866,
+        "bb_lower": 11.47643073719003,
+        "volume_sma": 166861.3295,
+        "price_above_ma20": "True",
+        "price_above_ma50": "True"
+      },
+      "decision": {
+        "action": "BUY",
+        "reason": "Action: \n\nReason: The current price of LINK/USDT is at a significant premium to its moving averages (20 and 50-day), indicating a potential uptrend. The RSI is also in the overbought territory, which suggests that the token may continue to rise. With the current position being neutral, buying into this momentum could provide a good opportunity for profit.",
+        "confidence": 0.8,
+        "timestamp": "2025-06-23T22:40:39.063001"
+      },
+      "strategy": "conservative",
+      "position_calculation": {
+        "target_allocation": 0.05,
+        "target_position_value": 500.0,
+        "max_position_value": 500.0,
+        "actual_position_value": 500.0,
+        "quantity": 40.35512510088781,
+        "risk_amount": 10.0
+      },
+      "timestamp": "2025-06-23T22:40:42.586052"
+    }
+  ],
+  "performance_metrics": {
+    "daily_return": 0.0,
+    "volatility": 0.01,
+    "win_rate": 0.5,
+    "sharpe_ratio": 0,
+    "total_trades": 0,
+    "winning_trades": 0,
+    "portfolio_value": 10000.0,
+    "total_pnl": 0.0,
+    "timestamp": "2025-06-23T22:40:11.329393"
+  },
+  "market_conditions": {
+    "volatility": "normal_volatility",
+    "trend": "sideways_market",
+    "market_volatility": 0.02,
+    "market_trend": 0,
+    "timestamp": "2025-06-23T22:40:11.329519"
+  },
+  "current_strategy": "conservative",
+  "strategy_performance": {
+    "moderate": [
+      {
+        "daily_return": 0.0,
+        "volatility": 0.01,
+        "win_rate": 0.5,
+        "sharpe_ratio": 0,
+        "total_trades": 0,
+        "winning_trades": 0,
+        "portfolio_value": 10000.0,
+        "total_pnl": 0.0,
+        "timestamp": "2025-06-23T22:40:11.335442"
+      }
+    ]
+  },
+  "timestamp": "2025-06-23T22:40:42.588616"
+}

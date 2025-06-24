@@ -1,265 +1,259 @@
-# AI Trading Bot with Local LLM
+# AI Trading Bot
 
-A sophisticated trading bot that uses a local Large Language Model (LLM) to make trading decisions. The bot connects to cryptocurrency exchanges, analyzes market data, and executes trades based on AI-generated decisions.
+An intelligent trading bot that uses local LLM (Ollama) for market analysis and decision making. Supports multiple assets, portfolios, and trading strategies.
 
 ## Features
 
-- 🤖 **Local LLM Integration**: Works with Ollama, LM Studio, or any OpenAI-compatible local model
-- 📊 **Real-time Market Data**: Fetches live market data with technical indicators (RSI, MACD, Moving Averages, Bollinger Bands)
-- 💰 **Risk Management**: Built-in stop-loss, take-profit, and position sizing
-- 📈 **Paper Trading**: Test strategies without real money
-- 🔄 **Automated Trading**: Runs continuously with configurable intervals
-- 📝 **Comprehensive Logging**: Detailed logs and trade history
-- 🛡️ **Safety Features**: Daily loss limits, portfolio risk management
+- 🤖 **AI-Powered Decisions**: Uses local LLM (Ollama) for market analysis
+- 📈 **Multi-Asset Trading**: Trade multiple cryptocurrencies simultaneously
+- 🎯 **Portfolio Management**: Pre-configured portfolios for different asset classes
+- ⚡ **Trading Strategies**: Conservative, moderate, aggressive, and scalping strategies
+- 📊 **Real-time Data**: Live market data from Binance
+- 🧪 **Paper Trading**: Safe testing with virtual money
+- 📝 **Comprehensive Logging**: Detailed logs and analysis reports
+- 🔧 **Easy Configuration**: Simple setup and customization
 
-## Prerequisites
+## Quick Start
 
-1. **Python 3.8+**
-2. **Local LLM Server** (Ollama, LM Studio, etc.)
-3. **Exchange API Keys** (for real trading)
+### 1. Install Dependencies
 
-## Installation
+```bash
+# Create virtual environment
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
 
-1. **Clone the repository:**
-   ```bash
-   git clone <repository-url>
-   cd trading-bot
-   ```
+# Install requirements
+pip install -r requirements.txt
+```
 
-2. **Install dependencies:**
-   ```bash
-   pip install -r requirements.txt
-   ```
+### 2. Install Ollama
 
-3. **Set up your local LLM:**
-   
-   **Option A: Ollama (Recommended)**
-   ```bash
-   # Install Ollama from https://ollama.ai
-   ollama pull llama2
-   ollama serve
-   ```
-   
-   **Option B: LM Studio**
-   - Download from https://lmstudio.ai
-   - Load a model and start the local server
-   
-   **Option C: Other local models**
-   - Any OpenAI-compatible API server
+```bash
+# Install Ollama
+brew install ollama
 
-4. **Configure the bot:**
-   ```bash
-   cp env_example.txt .env
-   # Edit .env with your settings
-   ```
+# Pull a model (llama2 recommended)
+ollama pull llama2
+
+# Start Ollama server
+ollama serve
+```
+
+### 3. Configure Environment
+
+```bash
+# Copy environment template
+cp env_template.txt .env
+
+# Edit .env with your settings
+nano .env
+```
+
+### 4. Start Trading
+
+#### Simple Interactive Mode
+```bash
+python start_trading.py
+```
+
+#### Command Line Mode
+```bash
+# List available options
+python enhanced_cli.py list
+
+# Test with specific portfolio and strategy
+python enhanced_cli.py test --portfolio crypto_majors --strategy moderate
+
+# Start trading
+python enhanced_cli.py start --portfolio defi_tokens --strategy conservative --interval 15
+```
+
+## Available Portfolios
+
+### 📈 Crypto Majors
+- Bitcoin (BTC), Ethereum (ETH), Binance Coin (BNB)
+- Solana (SOL), Cardano (ADA), Polkadot (DOT), Chainlink (LINK)
+
+### 🏦 DeFi Tokens
+- Uniswap (UNI), Aave (AAVE), Compound (COMP)
+- SushiSwap (SUSHI), Curve (CRV), Yearn Finance (YFI)
+
+### ⛓️ Layer 1 Blockchains
+- Ethereum (ETH), Solana (SOL), Avalanche (AVAX)
+- Cosmos (ATOM), NEAR Protocol (NEAR), Fantom (FTM), Algorand (ALGO)
+
+### 🎮 Gaming Tokens
+- Axie Infinity (AXS), The Sandbox (SAND), Decentraland (MANA)
+- Enjin Coin (ENJ), Gala (GALA)
+
+### 🤖 AI Tokens
+- Fetch.ai (FET), Ocean Protocol (OCEAN), SingularityNET (AGIX)
+- Render Token (RNDR), Basic Attention Token (BAT)
+
+### 🐕 Meme Coins
+- Dogecoin (DOGE), Shiba Inu (SHIB), Pepe (PEPE), Floki (FLOKI)
+
+### 🎯 Custom Portfolio
+- Customizable asset allocation
+
+## Trading Strategies
+
+### 🛡️ Conservative
+- Max position size: 5%
+- Stop loss: 10%
+- Take profit: 20%
+- Max daily trades: 3
+- Risk per trade: 2%
+
+### ⚖️ Moderate (Default)
+- Max position size: 10%
+- Stop loss: 15%
+- Take profit: 30%
+- Max daily trades: 5
+- Risk per trade: 3%
+
+### 🚀 Aggressive
+- Max position size: 20%
+- Stop loss: 25%
+- Take profit: 50%
+- Max daily trades: 10
+- Risk per trade: 5%
+
+### ⚡ Scalping
+- Max position size: 5%
+- Stop loss: 5%
+- Take profit: 10%
+- Max daily trades: 20
+- Risk per trade: 1%
+- Min holding time: 5 minutes
 
 ## Configuration
 
-Edit the `.env` file with your settings:
+### Environment Variables (.env)
 
-```env
+```bash
 # LLM Configuration
-LLM_BASE_URL=http://localhost:11434  # Ollama default
-LLM_MODEL=llama2                     # Your model name
-LLM_API_KEY=                         # Optional API key
+LLM_PROVIDER=ollama
+LLM_MODEL=llama2
+LLM_BASE_URL=http://localhost:11434
 
 # Trading Configuration
-EXCHANGE=binance                     # Exchange name
-SYMBOL=BTC/USDT                      # Trading pair
-TIMEFRAME=1h                         # Data timeframe
-POSITION_SIZE=0.01                   # 1% of portfolio per trade
-MAX_POSITIONS=3                      # Maximum concurrent positions
-STOP_LOSS_PCT=0.02                  # 2% stop loss
-TAKE_PROFIT_PCT=0.04                # 4% take profit
+TRADING_ENABLED=false
+PAPER_TRADING=true
+INITIAL_BALANCE=10000
 
-# Exchange API Keys (for real trading)
-EXCHANGE_API_KEY=your_api_key_here
-EXCHANGE_SECRET=your_secret_here
-EXCHANGE_PASSPHRASE=your_passphrase_here
+# Exchange Configuration
+EXCHANGE=binance
+API_KEY=your_api_key
+API_SECRET=your_api_secret
 
-# Risk Management
-MAX_DAILY_LOSS=0.05                 # 5% daily loss limit
-MAX_PORTFOLIO_RISK=0.02             # 2% portfolio risk
-
-# Bot Settings
-TRADING_ENABLED=false               # Set to true for real trading
-PAPER_TRADING=true                  # Use paper trading by default
+# Logging
 LOG_LEVEL=INFO
 ```
 
-## Usage
+### Custom Portfolios
 
-### Command Line Interface
-
-The bot includes a CLI for easy management:
-
-```bash
-# Test LLM connection
-python cli.py test-llm
-
-# Test market data fetching
-python cli.py test-data
-
-# Run a single trading cycle
-python cli.py cycle
-
-# Check bot status
-python cli.py status
-
-# Start the bot (runs continuously)
-python cli.py start --interval 60  # 60-minute intervals
-```
-
-### Python API
+Edit `asset_config.py` to create custom portfolios:
 
 ```python
-import asyncio
-from trading_bot import TradingBot
-
-async def main():
-    bot = TradingBot()
-    
-    # Initialize and run
-    if await bot.initialize():
-        await bot.start(interval_minutes=60)
-    
-    # Or run a single cycle
-    await bot.run_trading_cycle()
-    
-    # Get status
-    status = bot.get_status()
-    print(status)
-
-asyncio.run(main())
+"my_custom_portfolio": [
+    {"symbol": "BTC/USDT", "name": "Bitcoin", "exchange": "binance", "allocation": 0.50},
+    {"symbol": "ETH/USDT", "name": "Ethereum", "exchange": "binance", "allocation": 0.30},
+    {"symbol": "SOL/USDT", "name": "Solana", "exchange": "binance", "allocation": 0.20},
+]
 ```
 
-## How It Works
+## Usage Examples
 
-1. **Data Collection**: Fetches real-time market data including price, volume, and technical indicators
-2. **AI Analysis**: Sends market data to your local LLM for analysis
-3. **Decision Making**: LLM returns trading decisions (BUY/SELL/HOLD/CLOSE)
-4. **Risk Management**: Checks stop-losses, position limits, and risk parameters
-5. **Trade Execution**: Executes trades on the exchange (or simulates in paper trading)
-6. **Monitoring**: Logs all activities and maintains trade history
-
-## Supported Exchanges
-
-The bot uses the CCXT library and supports 100+ exchanges including:
-- Binance
-- Coinbase Pro
-- Kraken
-- Bitfinex
-- And many more...
-
-## LLM Integration
-
-The bot supports multiple LLM formats:
-
-### Ollama Format
+### Basic Single Asset Trading
 ```bash
-curl -X POST http://localhost:11434/api/generate \
-  -H "Content-Type: application/json" \
-  -d '{"model": "llama2", "prompt": "Hello"}'
+# Start with Bitcoin only
+python cli.py start --interval 15
 ```
 
-### OpenAI-Compatible Format
+### Multi-Asset Trading
 ```bash
-curl -X POST http://localhost:1234/v1/chat/completions \
-  -H "Content-Type: application/json" \
-  -d '{"model": "local-model", "messages": [{"role": "user", "content": "Hello"}]}'
+# Start with crypto majors portfolio
+python enhanced_cli.py start --portfolio crypto_majors --strategy moderate
+
+# Test DeFi tokens with conservative strategy
+python enhanced_cli.py test --portfolio defi_tokens --strategy conservative
+
+# Start aggressive AI tokens trading
+python enhanced_cli.py start --portfolio ai_tokens --strategy aggressive --interval 10
 ```
 
-### Anthropic Format
+### Interactive Mode
 ```bash
-curl -X POST http://localhost:1234/v1/messages \
-  -H "Content-Type: application/json" \
-  -d '{"model": "claude-3", "messages": [{"role": "user", "content": "Hello"}]}'
+python start_trading.py
+# Follow the prompts to select portfolio, strategy, and interval
 ```
+
+## File Structure
+
+```
+trading-bot/
+├── config.py              # Configuration management
+├── llm_client.py          # LLM integration (Ollama/OpenAI)
+├── data_fetcher.py        # Market data fetching
+├── trading_engine.py      # Order execution and risk management
+├── trading_bot.py         # Single asset trading bot
+├── multi_asset_bot.py     # Basic multi-asset bot
+├── enhanced_multi_bot.py  # Enhanced multi-asset bot with strategies
+├── asset_config.py        # Portfolio and strategy definitions
+├── cli.py                 # Single asset CLI
+├── multi_asset_cli.py     # Multi-asset CLI
+├── enhanced_cli.py        # Enhanced CLI with portfolio/strategy selection
+├── start_trading.py       # Interactive trading starter
+├── requirements.txt       # Python dependencies
+├── .env                   # Environment variables (create from env_template.txt)
+└── logs/                  # Log files
+```
+
+## Logging and Analysis
+
+The bot generates detailed logs and analysis reports:
+
+- **Log files**: `logs/enhanced_multi_bot_{portfolio}_{strategy}.log`
+- **Analysis reports**: `enhanced_analysis_{portfolio}_{strategy}_{timestamp}.json`
+- **Portfolio tracking**: Real-time portfolio value and P&L
 
 ## Safety Features
 
-- **Paper Trading**: Test strategies without real money
-- **Position Limits**: Maximum number of concurrent positions
-- **Stop Losses**: Automatic position closure at loss thresholds
-- **Take Profits**: Automatic position closure at profit targets
-- **Daily Loss Limits**: Stop trading if daily loss exceeds threshold
-- **Portfolio Risk Management**: Limit total exposure
+- ✅ **Paper Trading**: Test strategies without real money
+- ✅ **Position Sizing**: Automatic risk management
+- ✅ **Stop Losses**: Built-in loss protection
+- ✅ **Daily Limits**: Maximum trades per day
+- ✅ **Portfolio Diversification**: Multiple asset allocation
 
-## Logging
+## Supported Exchanges
 
-Logs are stored in `logs/trading_bot.log` with rotation:
-- Daily log rotation
-- 7-day retention
-- Configurable log levels
-
-## Trade History
-
-The bot maintains detailed trade history including:
-- Market data at time of trade
-- LLM decision and reasoning
-- Trade execution results
-- Portfolio performance
-
-Save trade history:
-```python
-bot.save_trade_history("my_trades.json")
-```
-
-## Development
-
-### Project Structure
-```
-trading-bot/
-├── config.py          # Configuration management
-├── llm_client.py      # LLM integration
-├── data_fetcher.py    # Market data collection
-├── trading_engine.py  # Trade execution
-├── trading_bot.py     # Main bot orchestration
-├── cli.py            # Command line interface
-├── requirements.txt   # Dependencies
-└── logs/             # Log files
-```
-
-### Adding New Features
-
-1. **New Technical Indicators**: Add to `data_fetcher.py`
-2. **New Exchanges**: CCXT handles most exchanges automatically
-3. **New LLM Providers**: Extend `llm_client.py`
-4. **New Trading Strategies**: Modify the LLM prompt in `llm_client.py`
+- **Binance**: Full support (recommended)
+- **Alpaca**: Stock trading (requires API keys)
+- **CCXT**: 100+ exchanges via CCXT library
 
 ## Troubleshooting
 
-### Common Issues
+### LLM Connection Issues
+```bash
+# Check if Ollama is running
+ollama list
 
-1. **LLM Connection Failed**
-   - Check if your LLM server is running
-   - Verify the URL in `LLM_BASE_URL`
-   - Test with `python cli.py test-llm`
-
-2. **Market Data Issues**
-   - Check internet connection
-   - Verify exchange API keys
-   - Test with `python cli.py test-data`
-
-3. **Trading Errors**
-   - Ensure `TRADING_ENABLED=true` for real trading
-   - Check exchange API permissions
-   - Verify account has sufficient funds
-
-### Debug Mode
-
-Set log level to DEBUG in `.env`:
-```env
-LOG_LEVEL=DEBUG
+# Restart Ollama
+ollama serve
 ```
 
-## Disclaimer
+### Data Fetching Issues
+```bash
+# Test data connection
+python -c "from data_fetcher import DataFetcher; import asyncio; asyncio.run(DataFetcher().get_market_data())"
+```
 
-⚠️ **This software is for educational purposes only. Trading cryptocurrencies involves substantial risk of loss. Never trade with money you cannot afford to lose. The authors are not responsible for any financial losses.**
-
-## License
-
-MIT License - see LICENSE file for details.
+### Portfolio Issues
+```bash
+# Validate portfolio configuration
+python asset_config.py
+```
 
 ## Contributing
 
@@ -269,9 +263,14 @@ MIT License - see LICENSE file for details.
 4. Add tests if applicable
 5. Submit a pull request
 
-## Support
+## Disclaimer
 
-For issues and questions:
-1. Check the troubleshooting section
-2. Review the logs in `logs/trading_bot.log`
-3. Open an issue on GitHub 
+This is educational software. Trading involves risk and you can lose money. Always:
+- Start with paper trading
+- Understand the strategies before using real money
+- Never invest more than you can afford to lose
+- Consider consulting a financial advisor
+
+## License
+
+MIT License - see LICENSE file for details. 

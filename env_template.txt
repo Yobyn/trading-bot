@@ -1,0 +1,29 @@
+# LLM Configuration
+LLM_BASE_URL=http://localhost:11434
+LLM_MODEL=llama2
+LLM_API_KEY=
+
+# Trading Configuration
+EXCHANGE=binance
+SYMBOL=BTC/USDT
+TIMEFRAME=1h
+POSITION_SIZE=0.01
+MAX_POSITIONS=3
+STOP_LOSS_PCT=0.02
+TAKE_PROFIT_PCT=0.04
+
+# Exchange API Keys (set these for real trading)
+# For Binance: Get from https://www.binance.com/en/my/settings/api-management
+# For Alpaca: Get from https://alpaca.markets/
+EXCHANGE_API_KEY=your_api_key_here
+EXCHANGE_SECRET=your_secret_key_here
+EXCHANGE_PASSPHRASE=your_passphrase_here
+
+# Risk Management
+MAX_DAILY_LOSS=0.05
+MAX_PORTFOLIO_RISK=0.02
+
+# Bot Settings
+TRADING_ENABLED=false
+PAPER_TRADING=true
+LOG_LEVEL=INFO 
