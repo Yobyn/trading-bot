@@ -89,7 +89,7 @@ async def main():
     print(f"\n🚀 Starting {portfolio} portfolio with {strategy} strategy...")
     print("Press Ctrl+C to stop the bot")
     
-    bot = EnhancedMultiAssetBot(portfolio_name=portfolio, strategy_name=strategy)
+    bot = EnhancedMultiAssetBot(portfolio_name='coinbase_majors', strategy_name=strategy)
     
     try:
         await bot.start(interval_minutes=interval)

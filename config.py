@@ -12,8 +12,8 @@ class TradingConfig(BaseSettings):
     llm_api_key: Optional[str] = None
     
     # Trading Configuration
-    exchange: str = "binance"
-    symbol: str = "BTC/USDT"
+    exchange: str = "coinbase"
+    symbol: str = "BTC/EUR"
     timeframe: str = "1h"
     position_size: float = 0.01  # 1% of portfolio
     max_positions: int = 3
@@ -24,6 +24,11 @@ class TradingConfig(BaseSettings):
     exchange_api_key: Optional[str] = None
     exchange_secret: Optional[str] = None
     exchange_passphrase: Optional[str] = None
+
+    # Coinbase API Keys (set in .env file)
+    coinbase_api_key: Optional[str] = None
+    coinbase_secret: Optional[str] = None
+    coinbase_passphrase: Optional[str] = None
     
     # Risk Management
     max_daily_loss: float = 0.05  # 5%
@@ -36,5 +41,6 @@ class TradingConfig(BaseSettings):
     
     class Config:
         env_file = ".env"
+        extra = "ignore"  # Allow extra fields from .env
 
 config = TradingConfig() 

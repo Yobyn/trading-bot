@@ -1,0 +1,33 @@
+{
+  "timestamp": "2025-06-24T19:01:57.164573",
+  "portfolio_name": "coinbase_majors",
+  "strategy": "moderate",
+  "portfolio_value": 30.0,
+  "available_capital": 3.0,
+  "opportunities_found": 3,
+  "total_invested": 0.0,
+  "opportunities": [
+    {
+      "symbol": "ETH/EUR",
+      "current_price": 0.023876,
+      "weekly_average": 2095.477380952381,
+      "discount": 0.9999886059376173,
+      "allocation": 1.0
+    },
+    {
+      "symbol": "BTC/EUR",
+      "current_price": 13.7,
+      "weekly_average": 90028.91136904762,
+      "discount": 0.9998478266615506,
+      "allocation": 1.0
+    },
+    {
+      "symbol": "SOL/EUR",
+      "current_price": 2.21915,
+      "weekly_average": 122.77416666666666,
+      "discount": 0.9819249434938132,
+      "allocation": 1.0
+    }
+  ],
+  "trading_enabled": true
+}

@@ -1,0 +1,251 @@
+{
+  "analysis_results": [
+    {
+      "asset": {
+        "symbol": "BTC/EUR",
+        "name": "Bitcoin",
+        "exchange": "coinbase",
+        "allocation": 0.4
+      },
+      "market_data": {
+        "symbol": "BTC/EUR",
+        "current_price": 91059.09,
+        "price_change_24h": 2.71,
+        "volume_24h": 42204624.9343289,
+        "high_24h": 91507.13,
+        "low_24h": 88232.34,
+        "timestamp": "2025-06-24T19:34:22.535864",
+        "current_position": {
+          "side": "None",
+          "size": 0,
+          "entry_price": 0,
+          "unrealized_pnl": 0
+        },
+        "portfolio_value": 10000.0,
+        "rsi": 57.98334821814417,
+        "macd": 478.17147190560354,
+        "macd_signal": 519.5803466911179,
+        "macd_histogram": -41.4088747855144,
+        "ma_20": 90809.88149999999,
+        "ma_50": 89139.0624,
+        "bb_upper": 91346.22027186141,
+        "bb_middle": 90809.88149999999,
+        "bb_lower": 90273.54272813856,
+        "volume_sma": 16.6225195,
+        "price_above_ma20": "True",
+        "price_above_ma50": "True"
+      },
+      "decision": {
+        "action": "HOLD",
+        "reason": "Based on the current market data, I recommend holding the current position. The price change of 2.71% over the past 24 hours is within a reasonable range, and the RSI and MACD indicators suggest that the market may be consolidating for potential future growth. With a portfolio value of $10,000 and no open positions, there is no need to enter a new position at this time.\n\nAction:",
+        "confidence": 0.8,
+        "timestamp": "2025-06-24T19:34:22.535864"
+      },
+      "strategy": "conservative",
+      "position_calculation": {
+        "target_allocation": 0.4,
+        "target_position_value": 4000.0,
+        "max_position_value": 500.0,
+        "actual_position_value": 500.0,
+        "quantity": 0.00549094000390296,
+        "risk_amount": 10.0
+      },
+      "timestamp": "2025-06-24T19:34:26.872703"
+    },
+    {
+      "asset": {
+        "symbol": "ETH/EUR",
+        "name": "Ethereum",
+        "exchange": "coinbase",
+        "allocation": 0.3
+      },
+      "market_data": {
+        "symbol": "ETH/EUR",
+        "current_price": 2111.34,
+        "price_change_24h": 6.936,
+        "volume_24h": 38811112.689651,
+        "high_24h": 2136.74,
+        "low_24h": 1957.15,
+        "timestamp": "2025-06-24T19:34:27.401262",
+        "current_position": {
+          "side": "None",
+          "size": 0,
+          "entry_price": 0,
+          "unrealized_pnl": 0
+        },
+        "portfolio_value": 10000.0,
+        "rsi": 63.91542059152885,
+        "macd": 27.552346884222516,
+        "macd_signal": 27.127503953451132,
+        "macd_histogram": 0.42484293077138346,
+        "ma_20": 2085.0389999999998,
+        "ma_50": 2005.8024000000003,
+        "bb_upper": 2117.8078278704093,
+        "bb_middle": 2085.0389999999998,
+        "bb_lower": 2052.2701721295903,
+        "volume_sma": 737.8852850000001,
+        "price_above_ma20": "True",
+        "price_above_ma50": "True"
+      },
+      "decision": {
+        "action": "BUY",
+        "reason": "Based on the provided market data analysis, my trading decision is to...\n\n - Enter a long position\n\nReason: The current price of ETH/EUR is at a 6-month high, and the 24h price change of 6.936% indicates a strong upward trend. The RSI and MACD are also indicating bullish signals, with the RSI above 50 and the MACD above its signal line. Additionally, the moving averages (20 and 50) are sloping upwards, which suggests that the trend is likely to continue. With a current position of none, entering a long position would allow us to capitalize on this trend.",
+        "confidence": 0.8,
+        "timestamp": "2025-06-24T19:34:27.401262"
+      },
+      "strategy": "conservative",
+      "position_calculation": {
+        "target_allocation": 0.3,
+        "target_position_value": 3000.0,
+        "max_position_value": 500.0,
+        "actual_position_value": 500.0,
+        "quantity": 0.2368164293766044,
+        "risk_amount": 10.0
+      },
+      "timestamp": "2025-06-24T19:34:32.911389"
+    },
+    {
+      "asset": {
+        "symbol": "SOL/EUR",
+        "name": "Solana",
+        "exchange": "coinbase",
+        "allocation": 0.2
+      },
+      "market_data": {
+        "symbol": "SOL/EUR",
+        "current_price": 124.23,
+        "price_change_24h": 5.039,
+        "volume_24h": 9008518.63322,
+        "high_24h": 126.76,
+        "low_24h": 117.73,
+        "timestamp": "2025-06-24T19:34:33.641848",
+        "current_position": {
+          "side": "None",
+          "size": 0,
+          "entry_price": 0,
+          "unrealized_pnl": 0
+        },
+        "portfolio_value": 10000.0,
+        "rsi": 52.84780578898224,
+        "macd": 1.384074074884765,
+        "macd_signal": 1.6247948144015172,
+        "macd_histogram": -0.2407207395167521,
+        "ma_20": 124.49449999999999,
+        "ma_50": 119.5516,
+        "bb_upper": 126.076284135916,
+        "bb_middle": 124.49449999999999,
+        "bb_lower": 122.91271586408398,
+        "volume_sma": 2795.9107,
+        "price_above_ma20": "False",
+        "price_above_ma50": "True"
+      },
+      "decision": {
+        "action": "BUY",
+        "reason": "Action: \nReason: The current price of SOL/EUR is at a 52-week high, and the RSI and MACD indicators are both bullish. This suggests that there may be further upside potential in the near term, warranting a long position entry.",
+        "confidence": 0.8,
+        "timestamp": "2025-06-24T19:34:33.641848"
+      },
+      "strategy": "conservative",
+      "position_calculation": {
+        "target_allocation": 0.2,
+        "target_position_value": 2000.0,
+        "max_position_value": 500.0,
+        "actual_position_value": 500.0,
+        "quantity": 4.024792723174756,
+        "risk_amount": 10.0
+      },
+      "timestamp": "2025-06-24T19:34:36.408689"
+    },
+    {
+      "asset": {
+        "symbol": "ADA/EUR",
+        "name": "Cardano",
+        "exchange": "coinbase",
+        "allocation": 0.1
+      },
+      "market_data": {
+        "symbol": "ADA/EUR",
+        "current_price": 0.5039,
+        "price_change_24h": 5.75,
+        "volume_24h": 1605753.69306,
+        "high_24h": 0.5119,
+        "low_24h": 0.4726,
+        "timestamp": "2025-06-24T19:34:36.974509",
+        "current_position": {
+          "side": "None",
+          "size": 0,
+          "entry_price": 0,
+          "unrealized_pnl": 0
+        },
+        "portfolio_value": 10000.0,
+        "rsi": 54.07725321888415,
+        "macd": 0.005478237719794055,
+        "macd_signal": 0.006187907482280571,
+        "macd_histogram": -0.0007096697624865162,
+        "ma_20": 0.503355,
+        "ma_50": 0.48466000000000004,
+        "bb_upper": 0.5104026498509107,
+        "bb_middle": 0.503355,
+        "bb_lower": 0.4963073501490893,
+        "volume_sma": 120399.93499999998,
+        "price_above_ma20": "True",
+        "price_above_ma50": "True"
+      },
+      "decision": {
+        "action": "BUY",
+        "reason": "Based on the provided market data analysis, my recommendation is to HOLD (maintain current position) for the following reasons:\n\n* The price change over the past 24 hours is positive (5.75%), indicating an uptrend.\n* The RSI and MACD indicators are both bullish, signaling a potential continuation of the uptrend.\n* The moving averages are also bullish, with the shorter-term average (20) above the longer-term average (50), which can act as a support level.\n* The current position is already long, so there is no need to take an opposing action like selling or buying more.\n\nTherefore, holding the current position is the most prudent decision based on the available data.",
+        "confidence": 0.8,
+        "timestamp": "2025-06-24T19:34:36.974509"
+      },
+      "strategy": "conservative",
+      "position_calculation": {
+        "target_allocation": 0.1,
+        "target_position_value": 1000.0,
+        "max_position_value": 500.0,
+        "actual_position_value": 500.0,
+        "quantity": 992.2603691208573,
+        "risk_amount": 10.0
+      },
+      "timestamp": "2025-06-24T19:34:42.989771"
+    }
+  ],
+  "performance_metrics": {
+    "daily_return": 0.0,
+    "volatility": 0.01,
+    "win_rate": 0.5,
+    "sharpe_ratio": 0,
+    "total_trades": 0,
+    "winning_trades": 0,
+    "portfolio_value": 10000.0,
+    "total_pnl": 0.0,
+    "daily_pnl": 0.0,
+    "timestamp": "2025-06-24T19:34:21.029435"
+  },
+  "market_conditions": {
+    "volatility": "low_volatility",
+    "trend": "sideways_market",
+    "market_volatility": 0.001506580081586807,
+    "market_trend": 0.001506580081586807,
+    "btc_price": 105782.36,
+    "eth_price": 2452.95,
+    "timestamp": "2025-06-24T19:34:22.011470"
+  },
+  "current_strategy": "conservative",
+  "strategy_performance": {
+    "moderate": [
+      {
+        "daily_return": 0.0,
+        "volatility": 0.01,
+        "win_rate": 0.5,
+        "sharpe_ratio": 0,
+        "total_trades": 0,
+        "winning_trades": 0,
+        "portfolio_value": 10000.0,
+        "total_pnl": 0.0,
+        "daily_pnl": 0.0,
+        "timestamp": "2025-06-24T19:34:22.011603"
+      }
+    ]
+  },
+  "timestamp": "2025-06-24T19:34:42.990255"
+}

@@ -1,0 +1,360 @@
+{
+  "portfolio_name": "crypto_majors",
+  "strategy_name": "moderate",
+  "opportunities": [
+    {
+      "asset": {
+        "symbol": "ETH/USDT",
+        "name": "Ethereum",
+        "exchange": "binance",
+        "allocation": 0.2
+      },
+      "symbol": "ETH/USDT",
+      "current_price": 2415.18,
+      "weekly_average": 2513.2089838086536,
+      "price_discount": 3.9005504293596496,
+      "volume_24h": 1905424327.102827,
+      "opportunity_score": 13.90055042935965,
+      "timestamp": "2025-06-24T12:56:16.799712"
+    },
+    {
+      "asset": {
+        "symbol": "BTC/USDT",
+        "name": "Bitcoin",
+        "exchange": "binance",
+        "allocation": 0.25
+      },
+      "symbol": "BTC/USDT",
+      "current_price": 105295.68,
+      "weekly_average": 104226.4277980998,
+      "price_discount": -1.0258935516541667,
+      "volume_24h": 2920647710.6671243,
+      "opportunity_score": 0,
+      "timestamp": "2025-06-24T12:56:15.655444"
+    },
+    {
+      "asset": {
+        "symbol": "BNB/USDT",
+        "name": "Binance Coin",
+        "exchange": "binance",
+        "allocation": 0.15
+      },
+      "symbol": "BNB/USDT",
+      "current_price": 637.0,
+      "weekly_average": 577.0267795913923,
+      "price_discount": -10.393489960912447,
+      "volume_24h": 148175906.95867,
+      "opportunity_score": 0,
+      "timestamp": "2025-06-24T12:56:17.791233"
+    }
+  ],
+  "allocations": [
+    {
+      "opportunity": {
+        "asset": {
+          "symbol": "ETH/USDT",
+          "name": "Ethereum",
+          "exchange": "binance",
+          "allocation": 0.2
+        },
+        "symbol": "ETH/USDT",
+        "current_price": 2415.18,
+        "weekly_average": 2513.2089838086536,
+        "price_discount": 3.9005504293596496,
+        "volume_24h": 1905424327.102827,
+        "opportunity_score": 13.90055042935965,
+        "timestamp": "2025-06-24T12:56:16.799712"
+      },
+      "allocation_amount": 2000.0,
+      "quantity": 0.8280956284831773,
+      "score_ratio": 1.0,
+      "timestamp": "2025-06-24T12:56:22.398688"
+    },
+    {
+      "opportunity": {
+        "asset": {
+          "symbol": "BTC/USDT",
+          "name": "Bitcoin",
+          "exchange": "binance",
+          "allocation": 0.25
+        },
+        "symbol": "BTC/USDT",
+        "current_price": 105295.68,
+        "weekly_average": 104226.4277980998,
+        "price_discount": -1.0258935516541667,
+        "volume_24h": 2920647710.6671243,
+        "opportunity_score": 0,
+        "timestamp": "2025-06-24T12:56:15.655444"
+      },
+      "allocation_amount": 0.0,
+      "quantity": 0.0,
+      "score_ratio": 0.0,
+      "timestamp": "2025-06-24T12:56:22.398814"
+    },
+    {
+      "opportunity": {
+        "asset": {
+          "symbol": "BNB/USDT",
+          "name": "Binance Coin",
+          "exchange": "binance",
+          "allocation": 0.15
+        },
+        "symbol": "BNB/USDT",
+        "current_price": 637.0,
+        "weekly_average": 577.0267795913923,
+        "price_discount": -10.393489960912447,
+        "volume_24h": 148175906.95867,
+        "opportunity_score": 0,
+        "timestamp": "2025-06-24T12:56:17.791233"
+      },
+      "allocation_amount": 0.0,
+      "quantity": 0.0,
+      "score_ratio": 0.0,
+      "timestamp": "2025-06-24T12:56:22.398906"
+    }
+  ],
+  "total_invested": 2000.0,
+  "allocation_history": [
+    {
+      "asset": "Ethereum",
+      "symbol": "ETH/USDT",
+      "allocation_amount": 2000.0,
+      "quantity": 0.8323761008173932,
+      "price": 2402.76,
+      "opportunity_score": 15.310216946128548,
+      "price_discount": 5.310216946128548,
+      "timestamp": "2025-06-24T11:05:40.662731"
+    },
+    {
+      "asset": "Bitcoin",
+      "symbol": "BTC/USDT",
+      "allocation_amount": 2000.0,
+      "quantity": 0.019042816630624963,
+      "price": 105026.48,
+      "opportunity_score": 11.070321940084,
+      "price_discount": 1.0703219400840003,
+      "timestamp": "2025-06-24T11:05:40.662867"
+    },
+    {
+      "asset": "Chainlink",
+      "symbol": "LINK/USDT",
+      "allocation_amount": 2000.0,
+      "quantity": 153.60983102918587,
+      "price": 13.02,
+      "opportunity_score": 10.584769328850134,
+      "price_discount": 0.5847693288501339,
+      "timestamp": "2025-06-24T11:05:40.662988"
+    },
+    {
+      "asset": "Cardano",
+      "symbol": "ADA/USDT",
+      "allocation_amount": 2000.0,
+      "quantity": 3438.1983840467597,
+      "price": 0.5817,
+      "opportunity_score": 17.765744384467606,
+      "price_discount": 7.765744384467607,
+      "timestamp": "2025-06-24T11:20:48.826198"
+    },
+    {
+      "asset": "Polkadot",
+      "symbol": "DOT/USDT",
+      "allocation_amount": 2000.0,
+      "quantity": 584.4535359438925,
+      "price": 3.422,
+      "opportunity_score": 14.670947410065587,
+      "price_discount": 4.670947410065587,
+      "timestamp": "2025-06-24T11:20:48.826330"
+    },
+    {
+      "asset": "Bitcoin",
+      "symbol": "BTC/USDT",
+      "allocation_amount": 0.0,
+      "quantity": 0.0,
+      "price": 105276.0,
+      "opportunity_score": 0,
+      "price_discount": -9.057172407156292,
+      "timestamp": "2025-06-24T11:20:48.826459"
+    },
+    {
+      "asset": "Bitcoin",
+      "symbol": "BTC/USDT",
+      "allocation_amount": 2000.0,
+      "quantity": 0.018979653811114484,
+      "price": 105376.0,
+      "opportunity_score": 18.995895040444918,
+      "price_discount": 8.995895040444918,
+      "timestamp": "2025-06-24T11:35:56.797479"
+    },
+    {
+      "asset": "Solana",
+      "symbol": "SOL/USDT",
+      "allocation_amount": 2000.0,
+      "quantity": 13.79690949227373,
+      "price": 144.96,
+      "opportunity_score": 18.598472589354667,
+      "price_discount": 8.598472589354667,
+      "timestamp": "2025-06-24T11:35:56.797576"
+    },
+    {
+      "asset": "Binance Coin",
+      "symbol": "BNB/USDT",
+      "allocation_amount": 2000.0,
+      "quantity": 3.1209525147074886,
+      "price": 640.83,
+      "opportunity_score": 14.897438454049308,
+      "price_discount": 4.897438454049308,
+      "timestamp": "2025-06-24T11:35:56.797668"
+    },
+    {
+      "asset": "Ethereum",
+      "symbol": "ETH/USDT",
+      "allocation_amount": 2000.0,
+      "quantity": 0.8268494555196335,
+      "price": 2418.82,
+      "opportunity_score": 18.211593145004542,
+      "price_discount": 8.211593145004544,
+      "timestamp": "2025-06-24T11:51:05.482241"
+    },
+    {
+      "asset": "Solana",
+      "symbol": "SOL/USDT",
+      "allocation_amount": 2000.0,
+      "quantity": 13.856172925038104,
+      "price": 144.34,
+      "opportunity_score": 17.180753591693524,
+      "price_discount": 7.180753591693525,
+      "timestamp": "2025-06-24T11:51:05.482315"
+    },
+    {
+      "asset": "Chainlink",
+      "symbol": "LINK/USDT",
+      "allocation_amount": 2000.0,
+      "quantity": 152.20700152207002,
+      "price": 13.14,
+      "opportunity_score": 12.379646414430097,
+      "price_discount": 2.379646414430096,
+      "timestamp": "2025-06-24T11:51:05.482408"
+    },
+    {
+      "asset": "Polkadot",
+      "symbol": "DOT/USDT",
+      "allocation_amount": 2000.0,
+      "quantity": 585.1375073142189,
+      "price": 3.418,
+      "opportunity_score": 18.46279580236685,
+      "price_discount": 8.462795802366848,
+      "timestamp": "2025-06-24T12:06:14.303955"
+    },
+    {
+      "asset": "Cardano",
+      "symbol": "ADA/USDT",
+      "allocation_amount": 2000.0,
+      "quantity": 3435.835767050335,
+      "price": 0.5821,
+      "opportunity_score": 17.092224481087655,
+      "price_discount": 7.092224481087657,
+      "timestamp": "2025-06-24T12:06:14.304025"
+    },
+    {
+      "asset": "Solana",
+      "symbol": "SOL/USDT",
+      "allocation_amount": 2000.0,
+      "quantity": 13.893713094824593,
+      "price": 143.95,
+      "opportunity_score": 15.586930240933004,
+      "price_discount": 5.586930240933003,
+      "timestamp": "2025-06-24T12:06:14.304072"
+    },
+    {
+      "asset": "Chainlink",
+      "symbol": "LINK/USDT",
+      "allocation_amount": 2000.0,
+      "quantity": 152.4390243902439,
+      "price": 13.12,
+      "opportunity_score": 18.874504938662085,
+      "price_discount": 8.874504938662083,
+      "timestamp": "2025-06-24T12:26:04.195011"
+    },
+    {
+      "asset": "Solana",
+      "symbol": "SOL/USDT",
+      "allocation_amount": 2000.0,
+      "quantity": 13.904338153503893,
+      "price": 143.84,
+      "opportunity_score": 11.5691877032857,
+      "price_discount": 1.5691877032856998,
+      "timestamp": "2025-06-24T12:26:04.195154"
+    },
+    {
+      "asset": "Bitcoin",
+      "symbol": "BTC/USDT",
+      "allocation_amount": 0.0,
+      "quantity": 0.0,
+      "price": 105207.99,
+      "opportunity_score": 0,
+      "price_discount": -1.7472621970788014,
+      "timestamp": "2025-06-24T12:26:04.195277"
+    },
+    {
+      "asset": "Solana",
+      "symbol": "SOL/USDT",
+      "allocation_amount": 2000.0,
+      "quantity": 13.88021375529183,
+      "price": 144.09,
+      "opportunity_score": 17.739206404538237,
+      "price_discount": 7.739206404538239,
+      "timestamp": "2025-06-24T12:41:13.926728"
+    },
+    {
+      "asset": "Ethereum",
+      "symbol": "ETH/USDT",
+      "allocation_amount": 2000.0,
+      "quantity": 0.8273283086927385,
+      "price": 2417.42,
+      "opportunity_score": 16.427226095487526,
+      "price_discount": 6.427226095487526,
+      "timestamp": "2025-06-24T12:41:13.926853"
+    },
+    {
+      "asset": "Bitcoin",
+      "symbol": "BTC/USDT",
+      "allocation_amount": 2000.0,
+      "quantity": 0.018989181198849674,
+      "price": 105323.13,
+      "opportunity_score": 13.109458823188419,
+      "price_discount": 3.1094588231884197,
+      "timestamp": "2025-06-24T12:41:13.926966"
+    },
+    {
+      "asset": "Ethereum",
+      "symbol": "ETH/USDT",
+      "allocation_amount": 2000.0,
+      "quantity": 0.8280956284831773,
+      "price": 2415.18,
+      "opportunity_score": 13.90055042935965,
+      "price_discount": 3.9005504293596496,
+      "timestamp": "2025-06-24T12:56:22.399633"
+    },
+    {
+      "asset": "Bitcoin",
+      "symbol": "BTC/USDT",
+      "allocation_amount": 0.0,
+      "quantity": 0.0,
+      "price": 105295.68,
+      "opportunity_score": 0,
+      "price_discount": -1.0258935516541667,
+      "timestamp": "2025-06-24T12:56:22.400008"
+    },
+    {
+      "asset": "Binance Coin",
+      "symbol": "BNB/USDT",
+      "allocation_amount": 0.0,
+      "quantity": 0.0,
+      "price": 637.0,
+      "opportunity_score": 0,
+      "price_discount": -10.393489960912447,
+      "timestamp": "2025-06-24T12:56:22.400178"
+    }
+  ],
+  "timestamp": "2025-06-24T12:56:22.400292"
+}

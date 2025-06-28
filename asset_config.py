@@ -1,69 +1,82 @@
 #!/usr/bin/env python3
 """
-Asset Configuration for Multi-Asset Trading Bot
+Asset Configuration for Multi-Asset Trading Bot (Coinbase Only)
 """
 
 # Predefined asset portfolios
 ASSET_PORTFOLIOS = {
-    "crypto_majors": [
-        {"symbol": "BTC/USDT", "name": "Bitcoin", "exchange": "binance", "allocation": 0.25},
-        {"symbol": "ETH/USDT", "name": "Ethereum", "exchange": "binance", "allocation": 0.20},
-        {"symbol": "BNB/USDT", "name": "Binance Coin", "exchange": "binance", "allocation": 0.15},
-        {"symbol": "SOL/USDT", "name": "Solana", "exchange": "binance", "allocation": 0.15},
-        {"symbol": "ADA/USDT", "name": "Cardano", "exchange": "binance", "allocation": 0.10},
-        {"symbol": "DOT/USDT", "name": "Polkadot", "exchange": "binance", "allocation": 0.10},
-        {"symbol": "LINK/USDT", "name": "Chainlink", "exchange": "binance", "allocation": 0.05},
+    "coinbase_majors": [
+        {"symbol": "BTC/EUR", "name": "Bitcoin", "exchange": "coinbase"},
+        {"symbol": "ETH/EUR", "name": "Ethereum", "exchange": "coinbase"},
+        {"symbol": "SOL/EUR", "name": "Solana", "exchange": "coinbase"},
+        {"symbol": "ADA/EUR", "name": "Cardano", "exchange": "coinbase"},
     ],
-    
-    "defi_tokens": [
-        {"symbol": "UNI/USDT", "name": "Uniswap", "exchange": "binance", "allocation": 0.20},
-        {"symbol": "AAVE/USDT", "name": "Aave", "exchange": "binance", "allocation": 0.20},
-        {"symbol": "COMP/USDT", "name": "Compound", "exchange": "binance", "allocation": 0.15},
-        {"symbol": "SUSHI/USDT", "name": "SushiSwap", "exchange": "binance", "allocation": 0.15},
-        {"symbol": "CRV/USDT", "name": "Curve", "exchange": "binance", "allocation": 0.15},
-        {"symbol": "YFI/USDT", "name": "Yearn Finance", "exchange": "binance", "allocation": 0.15},
+    "coinbase_all_eur": [
+        # Major Cryptocurrencies
+        {"symbol": "BTC/EUR", "name": "Bitcoin", "exchange": "coinbase"},
+        {"symbol": "ETH/EUR", "name": "Ethereum", "exchange": "coinbase"},
+        {"symbol": "LTC/EUR", "name": "Litecoin", "exchange": "coinbase"},
+        {"symbol": "BCH/EUR", "name": "Bitcoin Cash", "exchange": "coinbase"},
+        {"symbol": "XRP/EUR", "name": "Ripple", "exchange": "coinbase"},
+        {"symbol": "DOGE/EUR", "name": "Dogecoin", "exchange": "coinbase"},
+        {"symbol": "ETC/EUR", "name": "Ethereum Classic", "exchange": "coinbase"},
+        
+        # DeFi Tokens
+        {"symbol": "UNI/EUR", "name": "Uniswap", "exchange": "coinbase"},
+        {"symbol": "AAVE/EUR", "name": "Aave", "exchange": "coinbase"},
+        {"symbol": "CRV/EUR", "name": "Curve DAO Token", "exchange": "coinbase"},
+        {"symbol": "SNX/EUR", "name": "Synthetix", "exchange": "coinbase"},
+        {"symbol": "1INCH/EUR", "name": "1inch", "exchange": "coinbase"},
+        {"symbol": "ENS/EUR", "name": "Ethereum Name Service", "exchange": "coinbase"},
+        
+        # Layer 1 Smart Contract Platforms
+        {"symbol": "SOL/EUR", "name": "Solana", "exchange": "coinbase"},
+        {"symbol": "ADA/EUR", "name": "Cardano", "exchange": "coinbase"},
+        {"symbol": "DOT/EUR", "name": "Polkadot", "exchange": "coinbase"},
+        {"symbol": "AVAX/EUR", "name": "Avalanche", "exchange": "coinbase"},
+        {"symbol": "ATOM/EUR", "name": "Cosmos", "exchange": "coinbase"},
+        {"symbol": "ALGO/EUR", "name": "Algorand", "exchange": "coinbase"},
+        {"symbol": "MINA/EUR", "name": "Mina", "exchange": "coinbase"},
+        {"symbol": "XTZ/EUR", "name": "Tezos", "exchange": "coinbase"},
+        
+        # Utility Tokens
+        {"symbol": "LINK/EUR", "name": "Chainlink", "exchange": "coinbase"},
+        {"symbol": "BAT/EUR", "name": "Basic Attention Token", "exchange": "coinbase"},
+        {"symbol": "CHZ/EUR", "name": "Chiliz", "exchange": "coinbase"},
+        {"symbol": "MANA/EUR", "name": "Decentraland", "exchange": "coinbase"},
+        {"symbol": "FIL/EUR", "name": "Filecoin", "exchange": "coinbase"},
+        {"symbol": "GRT/EUR", "name": "The Graph", "exchange": "coinbase"},
+        {"symbol": "ICP/EUR", "name": "Internet Computer", "exchange": "coinbase"},
+        {"symbol": "MASK/EUR", "name": "Mask Network", "exchange": "coinbase"},
+        {"symbol": "XLM/EUR", "name": "Stellar", "exchange": "coinbase"},
+        {"symbol": "EOS/EUR", "name": "EOS", "exchange": "coinbase"},
+        
+        # Gaming/NFT Tokens
+        {"symbol": "APE/EUR", "name": "ApeCoin", "exchange": "coinbase"},
+        {"symbol": "AXS/EUR", "name": "Axie Infinity", "exchange": "coinbase"},
+        {"symbol": "RNDR/EUR", "name": "Render Token", "exchange": "coinbase"},
+        
+        # Layer 2/Scaling Solutions
+        {"symbol": "MATIC/EUR", "name": "Polygon", "exchange": "coinbase"},
+        {"symbol": "ANKR/EUR", "name": "Ankr", "exchange": "coinbase"},
+        
+        # Meme Coins
+        {"symbol": "SHIB/EUR", "name": "Shiba Inu", "exchange": "coinbase"},
+        
+        # Stablecoins
+        {"symbol": "USDC/EUR", "name": "USD Coin", "exchange": "coinbase"},
+        {"symbol": "USDT/EUR", "name": "Tether", "exchange": "coinbase"},
+        
+        # Additional Tokens
+        {"symbol": "CGLD/EUR", "name": "Celo", "exchange": "coinbase"},
+        {"symbol": "CRO/EUR", "name": "Cronos", "exchange": "coinbase"},
     ],
-    
-    "layer1_blockchains": [
-        {"symbol": "ETH/USDT", "name": "Ethereum", "exchange": "binance", "allocation": 0.25},
-        {"symbol": "SOL/USDT", "name": "Solana", "exchange": "binance", "allocation": 0.20},
-        {"symbol": "AVAX/USDT", "name": "Avalanche", "exchange": "binance", "allocation": 0.15},
-        {"symbol": "ATOM/USDT", "name": "Cosmos", "exchange": "binance", "allocation": 0.15},
-        {"symbol": "NEAR/USDT", "name": "NEAR Protocol", "exchange": "binance", "allocation": 0.10},
-        {"symbol": "FTM/USDT", "name": "Fantom", "exchange": "binance", "allocation": 0.10},
-        {"symbol": "ALGO/USDT", "name": "Algorand", "exchange": "binance", "allocation": 0.05},
+    "coinbase_majors_usd": [
+        {"symbol": "BTC/USDT", "name": "Bitcoin", "exchange": "coinbase", "allocation": 0.40},
+        {"symbol": "ETH/USDT", "name": "Ethereum", "exchange": "coinbase", "allocation": 0.30},
+        {"symbol": "SOL/USDT", "name": "Solana", "exchange": "coinbase", "allocation": 0.20},
+        {"symbol": "ADA/USDT", "name": "Cardano", "exchange": "coinbase", "allocation": 0.10},
     ],
-    
-    "meme_coins": [
-        {"symbol": "DOGE/USDT", "name": "Dogecoin", "exchange": "binance", "allocation": 0.30},
-        {"symbol": "SHIB/USDT", "name": "Shiba Inu", "exchange": "binance", "allocation": 0.30},
-        {"symbol": "PEPE/USDT", "name": "Pepe", "exchange": "binance", "allocation": 0.20},
-        {"symbol": "FLOKI/USDT", "name": "Floki", "exchange": "binance", "allocation": 0.20},
-    ],
-    
-    "gaming_tokens": [
-        {"symbol": "AXS/USDT", "name": "Axie Infinity", "exchange": "binance", "allocation": 0.25},
-        {"symbol": "SAND/USDT", "name": "The Sandbox", "exchange": "binance", "allocation": 0.25},
-        {"symbol": "MANA/USDT", "name": "Decentraland", "exchange": "binance", "allocation": 0.20},
-        {"symbol": "ENJ/USDT", "name": "Enjin Coin", "exchange": "binance", "allocation": 0.15},
-        {"symbol": "GALA/USDT", "name": "Gala", "exchange": "binance", "allocation": 0.15},
-    ],
-    
-    "ai_tokens": [
-        {"symbol": "FET/USDT", "name": "Fetch.ai", "exchange": "binance", "allocation": 0.25},
-        {"symbol": "OCEAN/USDT", "name": "Ocean Protocol", "exchange": "binance", "allocation": 0.25},
-        {"symbol": "AGIX/USDT", "name": "SingularityNET", "exchange": "binance", "allocation": 0.20},
-        {"symbol": "RNDR/USDT", "name": "Render Token", "exchange": "binance", "allocation": 0.15},
-        {"symbol": "BAT/USDT", "name": "Basic Attention Token", "exchange": "binance", "allocation": 0.15},
-    ],
-    
-    "custom_portfolio": [
-        # Add your custom assets here
-        {"symbol": "BTC/USDT", "name": "Bitcoin", "exchange": "binance", "allocation": 0.40},
-        {"symbol": "ETH/USDT", "name": "Ethereum", "exchange": "binance", "allocation": 0.30},
-        {"symbol": "SOL/USDT", "name": "Solana", "exchange": "binance", "allocation": 0.20},
-        {"symbol": "ADA/USDT", "name": "Cardano", "exchange": "binance", "allocation": 0.10},
-    ]
 }
 
 # Trading strategies
@@ -75,7 +88,6 @@ TRADING_STRATEGIES = {
         "max_daily_trades": 3,
         "risk_per_trade": 0.02,     # 2% risk per trade
     },
-    
     "moderate": {
         "max_position_size": 0.10,  # 10% max per position
         "stop_loss": 0.15,          # 15% stop loss
@@ -83,7 +95,6 @@ TRADING_STRATEGIES = {
         "max_daily_trades": 5,
         "risk_per_trade": 0.03,     # 3% risk per trade
     },
-    
     "aggressive": {
         "max_position_size": 0.20,  # 20% max per position
         "stop_loss": 0.25,          # 25% stop loss
@@ -91,7 +102,6 @@ TRADING_STRATEGIES = {
         "max_daily_trades": 10,
         "risk_per_trade": 0.05,     # 5% risk per trade
     },
-    
     "scalping": {
         "max_position_size": 0.05,  # 5% max per position
         "stop_loss": 0.05,          # 5% stop loss
@@ -104,8 +114,8 @@ TRADING_STRATEGIES = {
 
 # Market conditions and filters
 MARKET_FILTERS = {
-    "min_volume_24h": 1000000,      # Minimum 24h volume in USD
-    "min_market_cap": 10000000,     # Minimum market cap in USD
+    "min_volume_24h": 1000000,      # Minimum 24h volume in EUR
+    "min_market_cap": 10000000,     # Minimum market cap in EUR
     "max_spread": 0.02,             # Maximum bid-ask spread (2%)
     "min_price": 0.01,              # Minimum price per token
     "max_price": 100000,            # Maximum price per token
@@ -123,9 +133,9 @@ TIME_RULES = {
     "rebalance_frequency": "weekly", # How often to rebalance portfolio
 }
 
-def get_portfolio(portfolio_name: str = "crypto_majors"):
+def get_portfolio(portfolio_name: str = "coinbase_majors"):
     """Get a specific portfolio configuration"""
-    return ASSET_PORTFOLIOS.get(portfolio_name, ASSET_PORTFOLIOS["crypto_majors"])
+    return ASSET_PORTFOLIOS.get(portfolio_name, ASSET_PORTFOLIOS["coinbase_majors"])
 
 def get_strategy(strategy_name: str = "moderate"):
     """Get a specific trading strategy configuration"""
@@ -140,9 +150,21 @@ def list_available_strategies():
     return list(TRADING_STRATEGIES.keys())
 
 def validate_portfolio(portfolio):
-    """Validate that portfolio allocations sum to 1.0"""
-    total_allocation = sum(asset["allocation"] for asset in portfolio)
-    return abs(total_allocation - 1.0) < 0.01  # Allow small rounding errors
+    """Validate portfolio structure"""
+    if not portfolio:
+        return False
+    
+    # Check if portfolio has allocations (old style) or not (new LLM-driven style)
+    has_allocations = all("allocation" in asset for asset in portfolio)
+    
+    if has_allocations:
+        # Old style validation: check allocations sum to 1.0
+        total_allocation = sum(asset["allocation"] for asset in portfolio)
+        return abs(total_allocation - 1.0) < 0.01  # Allow small rounding errors
+    else:
+        # New style validation: just check required fields exist
+        required_fields = ["symbol", "name", "exchange"]
+        return all(all(field in asset for field in required_fields) for asset in portfolio)
 
 if __name__ == "__main__":
     # Test the configuration

@@ -13,7 +13,7 @@ from loguru import logger
 
 async def start_adaptive_bot(args):
     """Start the adaptive multi-asset trading bot"""
-    bot = AdaptiveMultiAssetBot(portfolio_name=args.portfolio)
+    bot = AdaptiveMultiAssetBot(portfolio_name='coinbase_majors')
     
     try:
         await bot.start(interval_minutes=args.interval)
@@ -24,7 +24,7 @@ async def start_adaptive_bot(args):
 
 async def test_adaptive_bot(args):
     """Test the adaptive multi-asset bot with a single cycle"""
-    bot = AdaptiveMultiAssetBot(portfolio_name=args.portfolio)
+    bot = AdaptiveMultiAssetBot(portfolio_name='coinbase_majors')
     
     if await bot.initialize():
         await bot.run_adaptive_trading_cycle()
@@ -35,7 +35,7 @@ async def test_adaptive_bot(args):
 
 async def status_adaptive_bot(args):
     """Show adaptive multi-asset bot status"""
-    bot = AdaptiveMultiAssetBot(portfolio_name=args.portfolio)
+    bot = AdaptiveMultiAssetBot(portfolio_name='coinbase_majors')
     
     if await bot.initialize():
         status = bot.get_status()
@@ -76,20 +76,20 @@ def main():
     
     # Start command
     start_parser = subparsers.add_parser('start', help='Start the adaptive multi-asset trading bot')
-    start_parser.add_argument('--portfolio', type=str, default='crypto_majors',
-                             help='Portfolio name (default: crypto_majors)')
+    start_parser.add_argument('--portfolio', type=str, default='coinbase_majors',
+                             help='Portfolio name (default: coinbase_majors)')
     start_parser.add_argument('--interval', type=int, default=15,
                              help='Trading cycle interval in minutes (default: 15)')
     
     # Test command
     test_parser = subparsers.add_parser('test', help='Test adaptive multi-asset bot with single cycle')
-    test_parser.add_argument('--portfolio', type=str, default='crypto_majors',
-                            help='Portfolio name (default: crypto_majors)')
+    test_parser.add_argument('--portfolio', type=str, default='coinbase_majors',
+                            help='Portfolio name (default: coinbase_majors)')
     
     # Status command
     status_parser = subparsers.add_parser('status', help='Show adaptive multi-asset bot status')
-    status_parser.add_argument('--portfolio', type=str, default='crypto_majors',
-                              help='Portfolio name (default: crypto_majors)')
+    status_parser.add_argument('--portfolio', type=str, default='coinbase_majors',
+                              help='Portfolio name (default: coinbase_majors)')
     
     # Features command
     subparsers.add_parser('features', help='Show adaptive bot features')

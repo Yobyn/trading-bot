@@ -14,7 +14,7 @@ from loguru import logger
 async def start_enhanced_bot(args):
     """Start the enhanced multi-asset trading bot"""
     bot = EnhancedMultiAssetBot(
-        portfolio_name=args.portfolio,
+        portfolio_name='coinbase_majors',
         strategy_name=args.strategy
     )
     
@@ -28,7 +28,7 @@ async def start_enhanced_bot(args):
 async def test_enhanced_bot(args):
     """Test the enhanced multi-asset bot with a single cycle"""
     bot = EnhancedMultiAssetBot(
-        portfolio_name=args.portfolio,
+        portfolio_name='coinbase_majors',
         strategy_name=args.strategy
     )
     
@@ -42,7 +42,7 @@ async def test_enhanced_bot(args):
 async def status_enhanced_bot(args):
     """Show enhanced multi-asset bot status"""
     bot = EnhancedMultiAssetBot(
-        portfolio_name=args.portfolio,
+        portfolio_name='coinbase_majors',
         strategy_name=args.strategy
     )
     
@@ -68,8 +68,8 @@ def main():
     
     # Start command
     start_parser = subparsers.add_parser('start', help='Start the enhanced multi-asset trading bot')
-    start_parser.add_argument('--portfolio', type=str, default='crypto_majors',
-                             help='Portfolio name (default: crypto_majors)')
+    start_parser.add_argument('--portfolio', type=str, default='coinbase_majors',
+                             help='Portfolio name (default: coinbase_majors)')
     start_parser.add_argument('--strategy', type=str, default='moderate',
                              help='Trading strategy (default: moderate)')
     start_parser.add_argument('--interval', type=int, default=15,
@@ -77,15 +77,15 @@ def main():
     
     # Test command
     test_parser = subparsers.add_parser('test', help='Test enhanced multi-asset bot with single cycle')
-    test_parser.add_argument('--portfolio', type=str, default='crypto_majors',
-                            help='Portfolio name (default: crypto_majors)')
+    test_parser.add_argument('--portfolio', type=str, default='coinbase_majors',
+                            help='Portfolio name (default: coinbase_majors)')
     test_parser.add_argument('--strategy', type=str, default='moderate',
                             help='Trading strategy (default: moderate)')
     
     # Status command
     status_parser = subparsers.add_parser('status', help='Show enhanced multi-asset bot status')
-    status_parser.add_argument('--portfolio', type=str, default='crypto_majors',
-                              help='Portfolio name (default: crypto_majors)')
+    status_parser.add_argument('--portfolio', type=str, default='coinbase_majors',
+                              help='Portfolio name (default: coinbase_majors)')
     status_parser.add_argument('--strategy', type=str, default='moderate',
                               help='Trading strategy (default: moderate)')
     

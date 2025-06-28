@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
 """
 Enhanced Multi-Asset Trading Bot
-Supports multiple portfolios and trading strategies
+Advanced trading bot with multiple strategies and portfolio management
 """
 
 import asyncio
 import json
+import os
 from datetime import datetime
-from typing import Dict, List, Any
+from typing import Dict, List, Any, Optional
 from loguru import logger
 from config import config
 from llm_client import LLMClient
@@ -15,8 +16,12 @@ from data_fetcher import DataFetcher
 from trading_engine import TradingEngine
 from asset_config import get_portfolio, get_strategy, list_available_portfolios, list_available_strategies
 
+# Ensure analysis folder exists
+ANALYSIS_FOLDER = "analysis"
+os.makedirs(ANALYSIS_FOLDER, exist_ok=True)
+
 class EnhancedMultiAssetBot:
-    def __init__(self, portfolio_name: str = "crypto_majors", strategy_name: str = "moderate"):
+    def __init__(self, portfolio_name: str = "coinbase_majors", strategy_name: str = "moderate"):
         self.llm_client = None
         self.data_fetcher = DataFetcher()
         self.trading_engine = TradingEngine()
@@ -66,19 +71,18 @@ class EnhancedMultiAssetBot:
             logger.error(f"Failed to initialize enhanced multi-asset bot: {e}")
             return False
     
-    async def analyze_asset(self, asset: Dict[str, Any]) -> Dict[str, Any]:
-        """Analyze a single asset with enhanced metrics"""
+    async def analyze_asset(self, asset: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """Analyze a single asset and return trading decision"""
         try:
-            # Get market data for this asset
-            market_data = await self.data_fetcher.get_market_data(asset["symbol"])
-            
-            if not market_data or market_data.get('current_price', 0) <= 0:
+            # Get market data
+            market_data = await self.data_fetcher.get_market_data(asset['symbol'])
+            if not market_data:
                 return None
             
             # Get LLM decision for this asset
             decision = await self.llm_client.get_trading_decision(market_data)
             
-            # Calculate position size based on allocation and strategy
+            # Calculate position size based on strategy
             portfolio_value = self.trading_engine.get_portfolio_summary()['portfolio_value']
             target_position_value = portfolio_value * asset["allocation"]
             max_position_value = portfolio_value * self.strategy["max_position_size"]
@@ -157,11 +161,7 @@ class EnhancedMultiAssetBot:
                     # Check if we have enough capital
                     if position_calc['actual_position_value'] > 0:
                         # Execute trade with calculated position size
-                        trade_result = await self.trading_engine.execute_trade(
-                            decision, 
-                            market_data,
-                            quantity=position_calc['quantity']
-                        )
+                        trade_result = await self.trading_engine.execute_trade(decision, market_data)
                         logger.info(f"Trade Result for {asset['name']}: {trade_result['status']}")
                     else:
                         logger.warning(f"Insufficient capital for {asset['name']}")
@@ -203,12 +203,15 @@ class EnhancedMultiAssetBot:
             logger.error(f"Error in enhanced trading cycle: {e}")
     
     def save_analysis_results(self, results: List[Dict[str, Any]]):
-        """Save analysis results to file"""
+        """Save analysis results to the analysis folder"""
         try:
-            filename = f"enhanced_analysis_{self.portfolio_name}_{self.strategy_name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
-            with open(filename, 'w') as f:
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            filename = f"enhanced_analysis_{self.portfolio_name}_{self.strategy_name}_{timestamp}.json"
+            filepath = os.path.join(ANALYSIS_FOLDER, filename)
+            
+            with open(filepath, 'w') as f:
                 json.dump(results, f, indent=2, default=str)
-            logger.info(f"Enhanced analysis results saved to {filename}")
+            logger.info(f"Enhanced analysis results saved to {filepath}")
         except Exception as e:
             logger.error(f"Failed to save analysis results: {e}")
     
@@ -269,7 +272,7 @@ class EnhancedMultiAssetBot:
 async def main():
     """Main function to run the enhanced multi-asset trading bot"""
     # You can change these parameters
-    portfolio_name = "crypto_majors"  # Options: crypto_majors, defi_tokens, layer1_blockchains, meme_coins, gaming_tokens, ai_tokens, custom_portfolio
+    portfolio_name = "coinbase_majors"  # Options: crypto_majors, defi_tokens, layer1_blockchains, meme_coins, gaming_tokens, ai_tokens, custom_portfolio
     strategy_name = "moderate"        # Options: conservative, moderate, aggressive, scalping
     
     bot = EnhancedMultiAssetBot(portfolio_name=portfolio_name, strategy_name=strategy_name)

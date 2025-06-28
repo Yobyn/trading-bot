@@ -1,0 +1,26 @@
+{
+  "timestamp": "2025-06-25T10:39:28.226476",
+  "portfolio_name": "coinbase_all_eur",
+  "strategy": "moderate",
+  "portfolio_value": 99.582990273214,
+  "available_capital": 5.996749932714,
+  "existing_positions": {
+    "XRP/EUR": {
+      "amount": 18.560795,
+      "current_price": 1.8756,
+      "buy_price": 1.8815,
+      "eur_value": 34.81262710199999,
+      "profit_loss_pct": -0.31357959075206043,
+      "profit_loss_eur": -0.1095086905000003
+    },
+    "SOL/EUR": {
+      "amount": 0.469,
+      "current_price": 125.32,
+      "buy_price": 126.47306216445935,
+      "eur_value": 58.775079999999996,
+      "profit_loss_pct": -0.9117057377483051,
+      "profit_loss_eur": -0.5407861551314382
+    }
+  },
+  "trading_enabled": true
+}

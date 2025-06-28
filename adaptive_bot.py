@@ -7,6 +7,7 @@ Automatically adjusts strategy based on performance and market conditions
 import asyncio
 import json
 import numpy as np
+import os
 from datetime import datetime, timedelta
 from typing import Dict, List, Any, Optional
 from loguru import logger
@@ -16,8 +17,12 @@ from data_fetcher import DataFetcher
 from trading_engine import TradingEngine
 from asset_config import get_portfolio, get_strategy, list_available_strategies
 
+# Ensure analysis folder exists
+ANALYSIS_FOLDER = "analysis"
+os.makedirs(ANALYSIS_FOLDER, exist_ok=True)
+
 class AdaptiveMultiAssetBot:
-    def __init__(self, portfolio_name: str = "crypto_majors"):
+    def __init__(self, portfolio_name: str = "coinbase_majors"):
         self.llm_client = None
         self.data_fetcher = DataFetcher()
         self.trading_engine = TradingEngine()
@@ -413,9 +418,11 @@ class AdaptiveMultiAssetBot:
             logger.error(f"Error in adaptive trading cycle: {e}")
     
     def save_adaptive_analysis(self, analysis_results: List[Dict[str, Any]], performance_metrics: Dict[str, Any], market_conditions: Dict[str, Any]):
-        """Save adaptive analysis results"""
+        """Save adaptive analysis results to the analysis folder"""
         try:
-            filename = f"adaptive_analysis_{self.portfolio_name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            filename = f"adaptive_analysis_{self.portfolio_name}_{timestamp}.json"
+            filepath = os.path.join(ANALYSIS_FOLDER, filename)
             
             data = {
                 'analysis_results': analysis_results,
@@ -426,9 +433,9 @@ class AdaptiveMultiAssetBot:
                 'timestamp': datetime.now().isoformat()
             }
             
-            with open(filename, 'w') as f:
+            with open(filepath, 'w') as f:
                 json.dump(data, f, indent=2, default=str)
-            logger.info(f"Adaptive analysis results saved to {filename}")
+            logger.info(f"Adaptive analysis results saved to {filepath}")
         except Exception as e:
             logger.error(f"Failed to save adaptive analysis results: {e}")
     
@@ -490,9 +497,50 @@ class AdaptiveMultiAssetBot:
             }
         }
 
+    def save_analysis_data(self, data: Dict[str, Any], analysis_type: str = "adaptive_analysis"):
+        """Save analysis data to the analysis folder"""
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = f"{analysis_type}_{self.portfolio_name}_{timestamp}.json"
+        filepath = os.path.join(ANALYSIS_FOLDER, filename)
+        
+        try:
+            with open(filepath, 'w') as f:
+                json.dump(data, f, indent=2, default=str)
+            logger.info(f"Analysis data saved to: {filepath}")
+            return filepath
+        except Exception as e:
+            logger.error(f"Error saving analysis data: {e}")
+            return None
+    
+    def load_historical_analysis(self, analysis_type: str = "adaptive_analysis", limit: int = 10):
+        """Load historical analysis data from the analysis folder"""
+        try:
+            analysis_files = []
+            for filename in os.listdir(ANALYSIS_FOLDER):
+                if filename.startswith(analysis_type) and filename.endswith('.json'):
+                    filepath = os.path.join(ANALYSIS_FOLDER, filename)
+                    analysis_files.append((filepath, os.path.getmtime(filepath)))
+            
+            # Sort by modification time (newest first)
+            analysis_files.sort(key=lambda x: x[1], reverse=True)
+            
+            historical_data = []
+            for filepath, _ in analysis_files[:limit]:
+                try:
+                    with open(filepath, 'r') as f:
+                        data = json.load(f)
+                        historical_data.append(data)
+                except Exception as e:
+                    logger.warning(f"Error loading {filepath}: {e}")
+            
+            return historical_data
+        except Exception as e:
+            logger.error(f"Error loading historical analysis: {e}")
+            return []
+
 async def main():
     """Main function to run the adaptive multi-asset trading bot"""
-    portfolio_name = "crypto_majors"  # You can change this
+    portfolio_name = "coinbase_majors"  # You can change this
     
     bot = AdaptiveMultiAssetBot(portfolio_name=portfolio_name)
     

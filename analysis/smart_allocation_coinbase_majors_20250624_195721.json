@@ -1,0 +1,13 @@
+{
+  "timestamp": "2025-06-24T19:57:21.949597",
+  "portfolio_name": "coinbase_majors",
+  "strategy": "moderate",
+  "portfolio_value": 30.0,
+  "available_capital": 30.0,
+  "open_position": {
+    "symbol": "SOL/EUR",
+    "amount": 0.013468809073724008,
+    "buy_price": 2116.0
+  },
+  "trading_enabled": true
+}

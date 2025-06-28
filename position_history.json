@@ -1,0 +1,18 @@
+{
+  "SOL/EUR": {
+    "buy_price": 126.47306216445935,
+    "total_amount": 0.47220579946061036,
+    "buy_timestamp": "2025-06-24T19:34:36",
+    "last_add_timestamp": "2025-06-25T10:00:07.183508"
+  },
+  "XRP/EUR": {
+    "buy_price": 1.8815,
+    "total_amount": 18.77986311995748,
+    "buy_timestamp": "2025-06-25T10:28:42.358004"
+  },
+  "BTC/EUR": {
+    "buy_price": 91682.98,
+    "total_amount": 4.144716936556818e-05,
+    "buy_timestamp": "2025-06-25T10:45:49.331998"
+  }
+}

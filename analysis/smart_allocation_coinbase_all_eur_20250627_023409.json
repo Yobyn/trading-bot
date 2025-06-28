@@ -1,0 +1,26 @@
+{
+  "timestamp": "2025-06-27T02:34:09.108934",
+  "portfolio_name": "coinbase_all_eur",
+  "strategy": "moderate",
+  "portfolio_value": 95.1785500384612,
+  "available_capital": 2.2021535771112,
+  "existing_positions": {
+    "SOL/EUR": {
+      "amount": 0.469,
+      "current_price": 119.01,
+      "buy_price": 126.47306216445935,
+      "eur_value": 55.81569,
+      "profit_loss_pct": -5.900910467997324,
+      "profit_loss_eur": -3.5001761551314323
+    },
+    "BTC/EUR": {
+      "amount": 4.089e-05,
+      "current_price": 91678.66,
+      "buy_price": 91682.98,
+      "eur_value": 3.7487404074000006,
+      "profit_loss_pct": -0.004711888727866866,
+      "profit_loss_eur": -0.0001766447999996906
+    }
+  },
+  "trading_enabled": true
+}
