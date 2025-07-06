@@ -63,4 +63,22 @@ Thumbs.db
 # Trading bot specific
 trade_history_*.json
 *.db
-*.sqlite 
+*.sqlite
+
+# Analysis data and results
+analysis/
+analysis/*
+*.analysis.json
+*_analysis_*.json
+adaptive_analysis_*.json
+smart_allocation_*.json
+enhanced_analysis_*.json
+rebalancing_*.json
+position_history.json
+
+# Trading data and results
+trades/
+results/
+backtests/
+portfolio_*.json
+performance_*.json 

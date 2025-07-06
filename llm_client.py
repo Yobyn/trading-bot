@@ -294,4 +294,469 @@ Respond with the asset symbol and your reasoning."""
         logger.info(f"  Confidence: {decision['confidence']*100:.0f}%")
         logger.info(f"  Reason: {reason}")
         
+        return decision
+
+    async def get_top_crypto_recommendations(self, assets: List[Dict[str, Any]], total_capital: float) -> Dict[str, Any]:
+        """Get LLM's top 5 cryptocurrency recommendations for portfolio rebalancing"""
+        system_prompt = """You are an expert cryptocurrency portfolio manager. Analyze all available cryptocurrencies and select the top 5 for a balanced, diversified portfolio.
+        
+        Consider:
+        - Market trends and technical indicators
+        - Price relative to historical averages (discount/premium)
+        - Risk diversification across different crypto categories
+        - Growth potential and market fundamentals
+        - Current market conditions
+        
+        Respond with EXACTLY 5 cryptocurrency symbols and brief reasoning for each."""
+        
+        # Prepare asset analysis for LLM
+        asset_analysis = []
+        for asset in assets:
+            symbol = asset.get('symbol', '')
+            current_price = asset.get('current_price', 0)
+            yearly_avg = asset.get('yearly_average', 0)
+            
+            # Calculate discount/premium vs yearly average
+            if yearly_avg > 0:
+                discount_pct = ((yearly_avg - current_price) / yearly_avg) * 100
+                if discount_pct > 0:
+                    valuation = f"{discount_pct:.1f}% discount"
+                else:
+                    valuation = f"{abs(discount_pct):.1f}% premium"
+            else:
+                valuation = "No historical data"
+            
+            # Get technical indicators
+            rsi = asset.get('rsi', 50)
+            price_vs_yearly = asset.get('price_vs_yearly_avg_pct', 0)
+            
+            asset_analysis.append(f"""
+{symbol}:
+  Current: €{current_price:.2f}
+  Yearly Avg: €{yearly_avg:.2f}
+  Valuation: {valuation}
+  RSI: {rsi:.1f}
+  vs Yearly: {price_vs_yearly:+.1f}%""")
+        
+        prompt = f"""Portfolio Rebalancing Analysis:
+
+Total Capital: €{total_capital:.2f}
+
+Available Cryptocurrencies:
+{''.join(asset_analysis)}
+
+Select the TOP 5 cryptocurrencies for a balanced portfolio. Consider:
+- Diversification across different crypto types (major coins, DeFi, Layer 1s, etc.)
+- Current valuations (prefer discounted assets)
+- Technical indicators and market momentum
+- Risk management and growth potential
+
+Respond with EXACTLY 5 symbols in order of preference, with brief reasoning for each."""
+        
+        logger.info("Requesting top 5 crypto recommendations from LLM")
+        logger.debug(f"System prompt: {system_prompt}")
+        logger.debug(f"User prompt: {prompt}")
+        
+        response = await self.generate_response(prompt, system_prompt)
+        
+        # Parse response to extract the 5 recommended symbols
+        import re
+        selected_symbols = []
+        
+        # Look for asset symbols in the response
+        response_upper = response.upper()
+        
+        for asset in assets:
+            symbol = asset.get('symbol', '')
+            symbol_upper = symbol.upper()
+            base_currency = symbol.split('/')[0] if '/' in symbol else symbol
+            base_upper = base_currency.upper()
+            
+            # Check for symbol or base currency mentions
+            if symbol_upper in response_upper or base_upper in response_upper:
+                if symbol not in selected_symbols:
+                    selected_symbols.append(symbol)
+                    if len(selected_symbols) >= 5:
+                        break
+        
+        # If we didn't find 5, add top assets by market cap as fallback
+        if len(selected_symbols) < 5:
+            major_cryptos = ['BTC/EUR', 'ETH/EUR', 'SOL/EUR', 'ADA/EUR', 'XRP/EUR']
+            for crypto in major_cryptos:
+                if crypto not in selected_symbols and any(a.get('symbol') == crypto for a in assets):
+                    selected_symbols.append(crypto)
+                    if len(selected_symbols) >= 5:
+                        break
+        
+        # Ensure we have exactly 5
+        selected_symbols = selected_symbols[:5]
+        
+        decision = {
+            "recommended_cryptos": selected_symbols,
+            "reasoning": response,
+            "total_capital": total_capital,
+            "timestamp": assets[0].get('timestamp') if assets else None
+        }
+        
+        # Format decision for human-readable logging
+        logger.info("🤖 Top 5 Crypto Recommendations:")
+        for i, symbol in enumerate(selected_symbols, 1):
+            logger.info(f"  {i}. {symbol}")
+        logger.info(f"  Reasoning: {response}")
+        
+        return decision
+
+    async def get_portfolio_allocation(self, recommended_cryptos: List[str], total_capital: float, crypto_data: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """Get LLM's recommended allocation percentages for the selected cryptocurrencies"""
+        system_prompt = """You are an expert portfolio manager. Given 5 selected cryptocurrencies and total capital, determine the optimal allocation percentage for each.
+        
+        Consider:
+        - Risk levels of each cryptocurrency
+        - Current market conditions and valuations
+        - Diversification principles
+        - Growth potential vs stability
+        
+        Respond with EXACT percentages that sum to 100%. Format as:
+        SYMBOL: XX%
+        
+        Be specific with numbers - avoid ranges."""
+        
+        # Prepare data for the selected cryptos
+        crypto_analysis = []
+        for symbol in recommended_cryptos:
+            # Find the crypto data
+            crypto_info = next((c for c in crypto_data if c.get('symbol') == symbol), None)
+            if crypto_info:
+                current_price = crypto_info.get('current_price', 0)
+                yearly_avg = crypto_info.get('yearly_average', 0)
+                price_vs_yearly = crypto_info.get('price_vs_yearly_avg_pct', 0)
+                rsi = crypto_info.get('rsi', 50)
+                
+                # Calculate discount/premium
+                if yearly_avg > 0:
+                    discount_pct = ((yearly_avg - current_price) / yearly_avg) * 100
+                    if discount_pct > 0:
+                        valuation = f"{discount_pct:.1f}% discount"
+                    else:
+                        valuation = f"{abs(discount_pct):.1f}% premium"
+                else:
+                    valuation = "No historical data"
+                
+                crypto_analysis.append(f"""
+{symbol}:
+  Current: €{current_price:.2f}
+  Valuation: {valuation}
+  vs Yearly: {price_vs_yearly:+.1f}%
+  RSI: {rsi:.1f}""")
+        
+        prompt = f"""Portfolio Allocation Decision:
+
+Total Capital: €{total_capital:.2f}
+Selected Cryptocurrencies:
+{''.join(crypto_analysis)}
+
+Determine the optimal allocation percentage for each cryptocurrency.
+Consider:
+- Lower allocation for higher-risk assets
+- Higher allocation for undervalued/discounted assets
+- Balance between growth potential and stability
+- Risk management across the portfolio
+
+Respond with EXACT percentages that sum to 100%:
+{recommended_cryptos[0]}: XX%
+{recommended_cryptos[1]}: XX%
+{recommended_cryptos[2]}: XX%
+{recommended_cryptos[3]}: XX%
+{recommended_cryptos[4]}: XX%
+
+Include brief reasoning for the allocation strategy."""
+        
+        logger.info("Requesting portfolio allocation from LLM")
+        logger.debug(f"System prompt: {system_prompt}")
+        logger.debug(f"User prompt: {prompt}")
+        
+        response = await self.generate_response(prompt, system_prompt)
+        
+        # Parse response to extract allocation percentages
+        import re
+        allocations = {}
+        
+        # Look for patterns like "SYMBOL: XX%" in the response
+        for symbol in recommended_cryptos:
+            base_currency = symbol.split('/')[0] if '/' in symbol else symbol
+            
+            # Try different patterns to find the allocation
+            patterns = [
+                rf'{re.escape(symbol)}:\s*(\d+(?:\.\d+)?)%',
+                rf'{re.escape(base_currency)}:\s*(\d+(?:\.\d+)?)%',
+                rf'{re.escape(symbol.upper())}:\s*(\d+(?:\.\d+)?)%',
+                rf'{re.escape(base_currency.upper())}:\s*(\d+(?:\.\d+)?)%',
+            ]
+            
+            for pattern in patterns:
+                match = re.search(pattern, response, re.IGNORECASE)
+                if match:
+                    allocations[symbol] = float(match.group(1))
+                    break
+        
+        # Validate allocations sum to 100% (with small tolerance)
+        total_allocation = sum(allocations.values())
+        
+        # If allocations don't sum to 100% or we're missing some, use equal weights
+        if abs(total_allocation - 100) > 5 or len(allocations) != len(recommended_cryptos):
+            logger.warning(f"LLM allocations sum to {total_allocation}% or missing cryptos. Using equal weights.")
+            equal_weight = 100.0 / len(recommended_cryptos)
+            allocations = {symbol: equal_weight for symbol in recommended_cryptos}
+        
+        # Normalize to exactly 100%
+        total_allocation = sum(allocations.values())
+        if total_allocation > 0:
+            allocations = {symbol: (pct / total_allocation) * 100 for symbol, pct in allocations.items()}
+        
+        decision = {
+            "allocations": allocations,
+            "reasoning": response,
+            "total_capital": total_capital,
+            "timestamp": crypto_data[0].get('timestamp') if crypto_data else None
+        }
+        
+        # Format decision for human-readable logging
+        logger.info("🤖 Portfolio Allocation:")
+        for symbol, percentage in allocations.items():
+            eur_amount = (percentage / 100) * total_capital
+            logger.info(f"  {symbol}: {percentage:.1f}% (€{eur_amount:.2f})")
+        logger.info(f"  Reasoning: {response}")
+        
         return decision 
+    async def get_top_crypto_recommendations(self, assets: List[Dict[str, Any]], total_capital: float) -> Dict[str, Any]:
+        """Get LLM's top 5 cryptocurrency recommendations for portfolio rebalancing"""
+        system_prompt = """You are an expert cryptocurrency portfolio manager. Analyze all available cryptocurrencies and select the top 5 for a balanced, diversified portfolio.
+        
+        Consider:
+        - Market trends and technical indicators
+        - Price relative to historical averages (discount/premium)
+        - Risk diversification across different crypto categories
+        - Growth potential and market fundamentals
+        - Current market conditions
+        
+        Respond with EXACTLY 5 cryptocurrency symbols and brief reasoning for each."""
+        
+        # Prepare asset analysis for LLM
+        asset_analysis = []
+        for asset in assets:
+            symbol = asset.get('symbol', '')
+            current_price = asset.get('current_price', 0)
+            yearly_avg = asset.get('yearly_average', 0)
+            
+            # Calculate discount/premium vs yearly average
+            if yearly_avg > 0:
+                discount_pct = ((yearly_avg - current_price) / yearly_avg) * 100
+                if discount_pct > 0:
+                    valuation = f"{discount_pct:.1f}% discount"
+                else:
+                    valuation = f"{abs(discount_pct):.1f}% premium"
+            else:
+                valuation = "No historical data"
+            
+            # Get technical indicators
+            rsi = asset.get('rsi', 50)
+            price_vs_yearly = asset.get('price_vs_yearly_avg_pct', 0)
+            
+            asset_analysis.append(f"""
+{symbol}:
+  Current: €{current_price:.2f}
+  Yearly Avg: €{yearly_avg:.2f}
+  Valuation: {valuation}
+  RSI: {rsi:.1f}
+  vs Yearly: {price_vs_yearly:+.1f}%""")
+        
+        prompt = f"""Portfolio Rebalancing Analysis:
+
+Total Capital: €{total_capital:.2f}
+
+Available Cryptocurrencies:
+{''.join(asset_analysis)}
+
+Select the TOP 5 cryptocurrencies for a balanced portfolio. Consider:
+- Diversification across different crypto types (major coins, DeFi, Layer 1s, etc.)
+- Current valuations (prefer discounted assets)
+- Technical indicators and market momentum
+- Risk management and growth potential
+
+Respond with EXACTLY 5 symbols in order of preference, with brief reasoning for each."""
+        
+        logger.info("Requesting top 5 crypto recommendations from LLM")
+        logger.debug(f"System prompt: {system_prompt}")
+        logger.debug(f"User prompt: {prompt}")
+        
+        response = await self.generate_response(prompt, system_prompt)
+        
+        # Parse response to extract the 5 recommended symbols
+        import re
+        selected_symbols = []
+        
+        # Look for asset symbols in the response
+        response_upper = response.upper()
+        
+        for asset in assets:
+            symbol = asset.get('symbol', '')
+            symbol_upper = symbol.upper()
+            base_currency = symbol.split('/')[0] if '/' in symbol else symbol
+            base_upper = base_currency.upper()
+            
+            # Check for symbol or base currency mentions
+            if symbol_upper in response_upper or base_upper in response_upper:
+                if symbol not in selected_symbols:
+                    selected_symbols.append(symbol)
+                    if len(selected_symbols) >= 5:
+                        break
+        
+        # If we didn't find 5, add top assets by market cap as fallback
+        if len(selected_symbols) < 5:
+            major_cryptos = ['BTC/EUR', 'ETH/EUR', 'SOL/EUR', 'ADA/EUR', 'XRP/EUR']
+            for crypto in major_cryptos:
+                if crypto not in selected_symbols and any(a.get('symbol') == crypto for a in assets):
+                    selected_symbols.append(crypto)
+                    if len(selected_symbols) >= 5:
+                        break
+        
+        # Ensure we have exactly 5
+        selected_symbols = selected_symbols[:5]
+        
+        decision = {
+            "recommended_cryptos": selected_symbols,
+            "reasoning": response,
+            "total_capital": total_capital,
+            "timestamp": assets[0].get('timestamp') if assets else None
+        }
+        
+        # Format decision for human-readable logging
+        logger.info("🤖 Top 5 Crypto Recommendations:")
+        for i, symbol in enumerate(selected_symbols, 1):
+            logger.info(f"  {i}. {symbol}")
+        logger.info(f"  Reasoning: {response}")
+        
+        return decision
+
+    async def get_portfolio_allocation(self, recommended_cryptos: List[str], total_capital: float, crypto_data: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """Get LLM's recommended allocation percentages for the selected cryptocurrencies"""
+        system_prompt = """You are an expert portfolio manager. Given 5 selected cryptocurrencies and total capital, determine the optimal allocation percentage for each.
+        
+        Consider:
+        - Risk levels of each cryptocurrency
+        - Current market conditions and valuations
+        - Diversification principles
+        - Growth potential vs stability
+        
+        Respond with EXACT percentages that sum to 100%. Format as:
+        SYMBOL: XX%
+        
+        Be specific with numbers - avoid ranges."""
+        
+        # Prepare data for the selected cryptos
+        crypto_analysis = []
+        for symbol in recommended_cryptos:
+            # Find the crypto data
+            crypto_info = next((c for c in crypto_data if c.get('symbol') == symbol), None)
+            if crypto_info:
+                current_price = crypto_info.get('current_price', 0)
+                yearly_avg = crypto_info.get('yearly_average', 0)
+                price_vs_yearly = crypto_info.get('price_vs_yearly_avg_pct', 0)
+                rsi = crypto_info.get('rsi', 50)
+                
+                # Calculate discount/premium
+                if yearly_avg > 0:
+                    discount_pct = ((yearly_avg - current_price) / yearly_avg) * 100
+                    if discount_pct > 0:
+                        valuation = f"{discount_pct:.1f}% discount"
+                    else:
+                        valuation = f"{abs(discount_pct):.1f}% premium"
+                else:
+                    valuation = "No historical data"
+                
+                crypto_analysis.append(f"""
+{symbol}:
+  Current: €{current_price:.2f}
+  Valuation: {valuation}
+  vs Yearly: {price_vs_yearly:+.1f}%
+  RSI: {rsi:.1f}""")
+        
+        prompt = f"""Portfolio Allocation Decision:
+
+Total Capital: €{total_capital:.2f}
+Selected Cryptocurrencies:
+{''.join(crypto_analysis)}
+
+Determine the optimal allocation percentage for each cryptocurrency.
+Consider:
+- Lower allocation for higher-risk assets
+- Higher allocation for undervalued/discounted assets
+- Balance between growth potential and stability
+- Risk management across the portfolio
+
+Respond with EXACT percentages that sum to 100%:
+{recommended_cryptos[0]}: XX%
+{recommended_cryptos[1]}: XX%
+{recommended_cryptos[2]}: XX%
+{recommended_cryptos[3]}: XX%
+{recommended_cryptos[4]}: XX%
+
+Include brief reasoning for the allocation strategy."""
+        
+        logger.info("Requesting portfolio allocation from LLM")
+        logger.debug(f"System prompt: {system_prompt}")
+        logger.debug(f"User prompt: {prompt}")
+        
+        response = await self.generate_response(prompt, system_prompt)
+        
+        # Parse response to extract allocation percentages
+        import re
+        allocations = {}
+        
+        # Look for patterns like "SYMBOL: XX%" in the response
+        for symbol in recommended_cryptos:
+            base_currency = symbol.split('/')[0] if '/' in symbol else symbol
+            
+            # Try different patterns to find the allocation
+            patterns = [
+                rf'{re.escape(symbol)}:\s*(\d+(?:\.\d+)?)%',
+                rf'{re.escape(base_currency)}:\s*(\d+(?:\.\d+)?)%',
+                rf'{re.escape(symbol.upper())}:\s*(\d+(?:\.\d+)?)%',
+                rf'{re.escape(base_currency.upper())}:\s*(\d+(?:\.\d+)?)%',
+            ]
+            
+            for pattern in patterns:
+                match = re.search(pattern, response, re.IGNORECASE)
+                if match:
+                    allocations[symbol] = float(match.group(1))
+                    break
+        
+        # Validate allocations sum to 100% (with small tolerance)
+        total_allocation = sum(allocations.values())
+        
+        # If allocations don't sum to 100% or we're missing some, use equal weights
+        if abs(total_allocation - 100) > 5 or len(allocations) != len(recommended_cryptos):
+            logger.warning(f"LLM allocations sum to {total_allocation}% or missing cryptos. Using equal weights.")
+            equal_weight = 100.0 / len(recommended_cryptos)
+            allocations = {symbol: equal_weight for symbol in recommended_cryptos}
+        
+        # Normalize to exactly 100%
+        total_allocation = sum(allocations.values())
+        if total_allocation > 0:
+            allocations = {symbol: (pct / total_allocation) * 100 for symbol, pct in allocations.items()}
+        
+        decision = {
+            "allocations": allocations,
+            "reasoning": response,
+            "total_capital": total_capital,
+            "timestamp": crypto_data[0].get('timestamp') if crypto_data else None
+        }
+        
+        # Format decision for human-readable logging
+        logger.info("🤖 Portfolio Allocation:")
+        for symbol, percentage in allocations.items():
+            eur_amount = (percentage / 100) * total_capital
+            logger.info(f"  {symbol}: {percentage:.1f}% (€{eur_amount:.2f})")
+        logger.info(f"  Reasoning: {response}")
+        
+        return decision

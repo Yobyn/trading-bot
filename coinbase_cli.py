@@ -36,6 +36,10 @@ async def main():
                        default=10000.0,
                        help='Paper trading balance in EUR (default: 10000.0)')
     
+    parser.add_argument('--rebalance', '-r',
+                       action='store_true',
+                       help='Liquidate all holdings and rebalance based on LLM top 5 crypto recommendations')
+    
     args = parser.parse_args()
     
     # Create bot
@@ -50,6 +54,7 @@ async def main():
     print(f"⚡ Strategy: {args.strategy}")
     print(f"⏰ Interval: {args.interval} minutes")
     print(f"🧪 Test Mode: {'Yes' if args.test else 'No'}")
+    print(f"🔄 Rebalance Mode: {'Yes' if args.rebalance else 'No'}")
     
     # Fetch live balance if live trading is enabled (after showing basic info)
     if config.trading_enabled:
@@ -67,7 +72,41 @@ async def main():
     if args.test and not config.trading_enabled:
         bot.trading_engine.set_paper_balance(args.paper_balance)
     
-    if args.test:
+    if args.rebalance:
+        # Run rebalancing cycle
+        print("\n🔄 Running rebalancing cycle...")
+        await bot.initialize()
+        rebalancing_success = await bot.run_rebalancing_cycle()
+        
+        if rebalancing_success:
+            print("✅ Rebalancing completed!")
+            
+            # After rebalancing, create a new bot instance with coinbase_all_eur portfolio
+            # This ensures continued trading uses the full 41-crypto portfolio
+            print(f"\n🚀 Switching to continuous trading mode with coinbase_all_eur portfolio (interval: {args.interval} minutes)...")
+            
+            # Create new bot instance with coinbase_all_eur portfolio for continued trading
+            rebalanced_bot = CoinbaseSmartAllocationBot(
+                portfolio_name='coinbase_all_eur',  # Always use full portfolio after rebalancing
+                strategy=args.strategy
+            )
+            await rebalanced_bot.initialize()
+            
+            while True:
+                try:
+                    await rebalanced_bot.run_smart_allocation_cycle()
+                    print(f"⏰ Waiting {args.interval} minutes before next cycle...")
+                    await asyncio.sleep(args.interval * 60)
+                except KeyboardInterrupt:
+                    print("\n🛑 Bot stopped by user")
+                    break
+                except Exception as e:
+                    print(f"❌ Error: {e}")
+                    await asyncio.sleep(60)  # Wait 1 minute before retrying
+        else:
+            print("❌ Rebalancing failed critically. Bot stopped.")
+            return
+    elif args.test:
         # Run single test cycle
         print("\n🧪 Running test cycle...")
         await bot.initialize()

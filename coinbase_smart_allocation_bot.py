@@ -83,8 +83,8 @@ class CoinbaseDataFetcher:
             
             # Try to get daily candles for ~11 months (more efficient than hourly)
             try:
-                candles = self.client.get_candles(product_id=product_id, start=start, end=end, granularity='ONE_DAY')
-                closes = [float(candle.close) for candle in candles.candles]
+                candles = self.client.get_candles(product_id=product_id, start=str(start), end=str(end), granularity='ONE_DAY')
+                closes = [float(candle.close) for candle in candles.candles if candle.close is not None]
                 
                 # Validate we have at least 250 days of data (allowing for some missing days and weekends)
                 if len(closes) < 250:
@@ -92,21 +92,25 @@ class CoinbaseDataFetcher:
                     return None  # Skip assets without sufficient historical data
                 
                 yearly_avg = np.mean(closes) if closes else 0
-                logger.info(f"{symbol}: Using {len(closes)} days of historical data for ~11-month average")
+                # Calculate weekly average (last 7 days)
+                weekly_avg = np.mean(closes[-7:]) if len(closes) >= 7 else yearly_avg
+                logger.info(f"{symbol}: Using {len(closes)} days of historical data for ~11-month average, weekly avg from last 7 days")
                 
             except Exception as candle_error:
                 logger.warning(f"Failed to get daily candles for {symbol}, trying hourly: {candle_error}")
                 # Fallback to hourly candles for last 30 days if daily fails
                 start_dt = now - timedelta(days=30)
                 start = int(start_dt.timestamp())
-                candles = self.client.get_candles(product_id=product_id, start=start, end=end, granularity='ONE_HOUR')
-                closes = [float(candle.close) for candle in candles.candles]
+                candles = self.client.get_candles(product_id=product_id, start=str(start), end=str(end), granularity='ONE_HOUR')
+                closes = [float(candle.close) for candle in candles.candles if candle.close is not None]
                 
                 if len(closes) < 600:  # Less than ~25 days of hourly data
                     logger.warning(f"{symbol}: Insufficient historical data even with hourly fallback. Skipping this asset.")
                     return None
                 
                 yearly_avg = np.mean(closes) if closes else 0
+                # Calculate weekly average (last 7 days * 24 hours = 168 hours)
+                weekly_avg = np.mean(closes[-168:]) if len(closes) >= 168 else yearly_avg
                 logger.warning(f"{symbol}: Using fallback 30-day average instead of ~11-month average (insufficient data)")
             
             # If current price seems wrong (too low compared to yearly average), use most recent candle close
@@ -132,6 +136,7 @@ class CoinbaseDataFetcher:
                 'symbol': symbol,
                 'current_price': current_price,
                 'yearly_average': yearly_avg,
+                'weekly_average': weekly_avg,
                 'bid': best_bid,
                 'ask': best_ask,
                 'volume': 0,  # Not available in basic ticker
@@ -163,11 +168,12 @@ class CoinbaseDataFetcher:
                     
                     # Retry the main data fetching logic
                     ticker = self.client.get_product_book(product_id=product_id, limit=1)
-                    if not ticker or not ticker.get('bids') or not ticker.get('asks'):
+                    if not ticker or not hasattr(ticker, 'pricebook') or not ticker.pricebook:
                         continue
                         
-                    bid_price = float(ticker['bids'][0]['price']) if ticker.get('bids') else None
-                    ask_price = float(ticker['asks'][0]['price']) if ticker.get('asks') else None
+                    pricebook = ticker.pricebook
+                    bid_price = float(pricebook.bids[0].price) if pricebook.bids and len(pricebook.bids) > 0 else None
+                    ask_price = float(pricebook.asks[0].price) if pricebook.asks and len(pricebook.asks) > 0 else None
                     current_price = (bid_price + ask_price) / 2 if bid_price and ask_price else None
                     
                     if not current_price:
@@ -186,6 +192,7 @@ class CoinbaseDataFetcher:
                         if candles and candles.get('candles') and len(candles['candles']) >= 250:
                             prices = [float(candle['close']) for candle in candles['candles']]
                             yearly_average = sum(prices) / len(prices) if prices else current_price
+                            weekly_average = sum(prices[-7:]) / len(prices[-7:]) if len(prices) >= 7 else yearly_average
                             indicators = self._calculate_technical_indicators(prices)
                         else:
                             # Fallback to 30-day average if insufficient yearly data
@@ -198,12 +205,14 @@ class CoinbaseDataFetcher:
                             if candles and candles.get('candles') and len(candles['candles']) >= 600:
                                 prices = [float(candle['close']) for candle in candles['candles']]
                                 yearly_average = sum(prices) / len(prices) if prices else current_price
+                                weekly_average = sum(prices[-168:]) / len(prices[-168:]) if len(prices) >= 168 else yearly_average
                                 indicators = self._calculate_technical_indicators(prices)
                             else:
                                 # Skip asset if insufficient data
                                 continue
                     except Exception:
                         yearly_average = current_price
+                        weekly_average = current_price
                         indicators = {}
                     
                     # Success! Return the data
@@ -213,6 +222,7 @@ class CoinbaseDataFetcher:
                         'bid': bid_price,
                         'ask': ask_price,
                         'yearly_average': yearly_average,
+                        'weekly_average': weekly_average,
                         'volume': 0,  # Volume not easily available from ticker
                         'rsi': indicators.get('rsi', 50),
                         'macd': indicators.get('macd', 0),
@@ -316,10 +326,10 @@ class CoinbaseTradingEngine:
         self.precision_rules = {
             'BTC-EUR': {'size_decimals': 8, 'price_decimals': 2},
             'ETH-EUR': {'size_decimals': 6, 'price_decimals': 2},
-            'SOL-EUR': {'size_decimals': 2, 'price_decimals': 2},  # SOL needs only 2 decimal places for size
-            'ADA-EUR': {'size_decimals': 2, 'price_decimals': 4},
+            'SOL-EUR': {'size_decimals': 4, 'price_decimals': 2},  # SOL supports 4 decimal places for size
+            'ADA-EUR': {'size_decimals': 4, 'price_decimals': 4},  # ADA supports 4 decimal places for size
             # Default fallback
-            'default': {'size_decimals': 2, 'price_decimals': 2}
+            'default': {'size_decimals': 4, 'price_decimals': 2}  # Most cryptos support 4 decimal places
         }
         
         logger.info("Connected to Coinbase Advanced API (TradingEngine)")
@@ -500,17 +510,31 @@ class CoinbaseTradingEngine:
                     }
                 )
             else:
-                # Market order - use quote_size for market orders
-                order = self.client.create_order(
-                    product_id=product_id,
-                    side=side.upper(),
-                    client_order_id=client_order_id,
-                    order_configuration={
-                        'market_market_ioc': {
-                            'quote_size': formatted_amount
+                # Market order
+                if side.upper() == 'BUY':
+                    # For market BUY orders, use quote_size (EUR amount to spend)
+                    order = self.client.create_order(
+                        product_id=product_id,
+                        side=side.upper(),
+                        client_order_id=client_order_id,
+                        order_configuration={
+                            'market_market_ioc': {
+                                'quote_size': formatted_amount
+                            }
                         }
-                    }
-                )
+                    )
+                else:
+                    # For market SELL orders, use base_size (crypto amount to sell)
+                    order = self.client.create_order(
+                        product_id=product_id,
+                        side=side.upper(),
+                        client_order_id=client_order_id,
+                        order_configuration={
+                            'market_market_ioc': {
+                                'base_size': formatted_amount
+                            }
+                        }
+                    )
             
             # Handle the response - check if order was successful
             success = False
@@ -570,6 +594,7 @@ class CoinbaseSmartAllocationBot:
         
         # Strategy parameters
         self.min_capital = 1  # Minimum capital to start trading
+        self.min_liquidation_value = 1.0  # Minimum position value to liquidate (€)
         
         logger.info("Initialized Coinbase Smart Allocation Bot (Advanced API)")
         logger.info(f"Portfolio: {portfolio_name} ({len(self.portfolio)} assets)")
@@ -578,6 +603,7 @@ class CoinbaseSmartAllocationBot:
         logger.info(f"Historical Analysis: ~11-month average (330 days)")
         logger.info(f"Min Historical Data: 250+ days required")
         logger.info(f"Min Capital: €{self.min_capital}")
+        logger.info(f"Min Liquidation Value: €{self.min_liquidation_value}")
         logger.info(f"Trading: {'PAPER' if not config.trading_enabled else 'LIVE'}")
 
     def load_position_history(self) -> Dict[str, Dict[str, float]]:
@@ -915,12 +941,12 @@ class CoinbaseSmartAllocationBot:
                     # Get full market data for this asset to send to LLM
                     market_data = self.data_fetcher.get_market_data(symbol)
                     if market_data:
-                        # Calculate price vs yearly average percentage
-                        yearly_avg = market_data.get('yearly_average', current_price)
-                        if yearly_avg > 0:
-                            price_vs_yearly_avg_pct = ((current_price - yearly_avg) / yearly_avg) * 100
+                        # For SELL decisions, use weekly average for shorter-term momentum analysis
+                        weekly_avg = market_data.get('weekly_average', current_price)
+                        if weekly_avg > 0:
+                            price_vs_weekly_avg_pct = ((current_price - weekly_avg) / weekly_avg) * 100
                         else:
-                            price_vs_yearly_avg_pct = 0
+                            price_vs_weekly_avg_pct = 0
                         
                         # Prepare comprehensive market data for LLM (convert all to regular Python types)
                         # Use sell price (bid) for current valuation
@@ -931,9 +957,9 @@ class CoinbaseSmartAllocationBot:
                             'buy_price': float(position.get('buy_price', current_price)),
                             'profit_loss_pct': float(position.get('profit_loss_pct', 0)),
                             'profit_loss_eur': float(position.get('profit_loss_eur', 0)),
-                            'price_vs_yearly_avg_pct': float(price_vs_yearly_avg_pct),
+                            'price_vs_weekly_avg_pct': float(price_vs_weekly_avg_pct),  # Use weekly average for sell decisions
                             'volume_24h': market_data.get('volume', 0),
-                            'yearly_average': float(yearly_avg),
+                            'weekly_average': float(weekly_avg),  # Use weekly average for sell decisions
                             'bid': float(market_data.get('bid', current_price)),
                             'ask': float(market_data.get('ask', current_price)),
                             # Technical indicators
@@ -951,9 +977,9 @@ class CoinbaseSmartAllocationBot:
                         llm_sell_request = {
                             'symbol': symbol,
                             'current_price': float(current_price),
-                            'price_vs_yearly_avg_pct': 0,
+                            'price_vs_weekly_avg_pct': 0,  # Use weekly average for sell decisions
                             'volume_24h': 0,
-                            'yearly_average': float(current_price),
+                            'weekly_average': float(current_price),  # Use weekly average for sell decisions
                             'rsi': 50,  # Neutral RSI
                             'macd': 0,  # Neutral MACD
                             'ma_20': float(current_price),
@@ -969,6 +995,7 @@ class CoinbaseSmartAllocationBot:
                     logger.info(f"  Original Buy Price: €{llm_sell_request.get('buy_price', 0):.2f}")
                     logger.info(f"  Profit/Loss: {llm_sell_request.get('profit_loss_pct', 0):+.1f}% (€{llm_sell_request.get('profit_loss_eur', 0):+.2f})")
                     logger.info(f"  Position: {llm_sell_request.get('current_position', 'Unknown')}")
+                    logger.info(f"📊 SELL DECISION: Using weekly average (€{llm_sell_request.get('weekly_average', 0):.6f}) for short-term momentum analysis")
                     
                     llm_sell_decision = await llm_client.get_trading_decision(llm_sell_request)
                     # Note: LLM client now logs its own formatted decision, so we don't need to log it again here
@@ -1022,7 +1049,8 @@ class CoinbaseSmartAllocationBot:
                     symbol = all_market_data[0]['symbol']
                     
                 selected = next((d for d in all_market_data if d['symbol'] == symbol), all_market_data[0])
-                logger.info(f"LLM selected {symbol} for allocation: €{selected['current_price']:.6f} (yearly avg: €{selected['yearly_average']:.6f})")
+                logger.info(f"LLM selected {symbol} for BUY allocation: €{selected['current_price']:.6f} (yearly avg: €{selected['yearly_average']:.6f}, weekly avg: €{selected['weekly_average']:.6f})")
+                logger.info(f"📊 BUY DECISION: Using yearly average for long-term value assessment")
                 
                 # Calculate quantity to buy - use ask price for buy orders
                 buy_price = self.get_buy_price(selected)  # Use ask price for buying
@@ -1061,6 +1089,220 @@ class CoinbaseSmartAllocationBot:
         self.save_analysis_data(analysis_data, "smart_allocation")
         logger.info("🔄 Smart allocation cycle complete.")
         logger.info("📋 ISOLATION SUMMARY: Each position evaluated independently, EUR investment decided separately")
+
+    async def run_rebalancing_cycle(self) -> bool:
+        """Run complete portfolio rebalancing: liquidate all holdings and reinvest in LLM's top 5 picks
+        Returns True if rebalancing should allow continued operation, False if bot should stop"""
+        logger.info("🔄 Starting COMPLETE PORTFOLIO REBALANCING...")
+        
+        # 1. LIQUIDATION PHASE: Sell all existing holdings
+        logger.info("💰 PHASE 1: LIQUIDATING ALL HOLDINGS")
+        existing_positions = self.detect_existing_positions()
+        
+        total_liquidated = 0.0
+        liquidation_successes = 0
+        liquidation_attempts = 0
+        
+        if existing_positions:
+            logger.info(f"🏦 Found {len(existing_positions)} existing positions to liquidate:")
+            for symbol, position in existing_positions.items():
+                amount = position['amount']
+                current_price = position['current_price']
+                eur_value = position['eur_value']
+                
+                # Skip positions worth less than minimum threshold to avoid fees and failed orders
+                if eur_value < self.min_liquidation_value:
+                    logger.info(f"  ⏭️ Skipping {symbol.split('/')[0]}: {amount:.4f} = €{eur_value:.2f} (below €{self.min_liquidation_value} minimum)")
+                    continue
+                
+                logger.info(f"  💸 Liquidating {symbol.split('/')[0]}: {amount:.4f} = €{eur_value:.2f}")
+                
+                liquidation_attempts += 1
+                # Sell the position using market order
+                success = self.trading_engine.place_order(symbol, 'sell', amount, None)
+                if success:
+                    liquidation_successes += 1
+                    total_liquidated += eur_value
+                    logger.info(f"✅ SOLD: {amount:.4f} {symbol} (€{eur_value:.2f})")
+                else:
+                    logger.warning(f"❌ Failed to sell {symbol}")
+        else:
+            logger.info("🏦 No existing positions to liquidate")
+        
+        # Get updated balance after liquidation (with retries for settlement)
+        logger.info("⏰ Waiting for liquidation settlement...")
+        
+        # Wait a few seconds for liquidation to settle
+        await asyncio.sleep(3)
+        
+        # Get initial balance for comparison
+        initial_balance = self.get_eur_balance() if liquidation_successes == 0 else 0
+        
+        # Try multiple times to get the updated balance
+        max_retries = 5
+        for attempt in range(max_retries):
+            total_capital = self.get_eur_balance()
+            logger.info(f"💰 Balance check {attempt + 1}/{max_retries}: €{total_capital:.2f}")
+            
+            # Calculate expected minimum balance (initial balance + 90% of liquidated amount)
+            expected_min_balance = initial_balance + (total_liquidated * 0.9)
+            
+            # If balance looks reasonable, break
+            if liquidation_successes > 0 and total_capital >= expected_min_balance:
+                logger.info(f"✅ Balance settlement confirmed: €{total_capital:.2f} >= €{expected_min_balance:.2f}")
+                break
+            elif liquidation_successes == 0:  # No liquidations, current balance is fine
+                break
+            
+            if attempt < max_retries - 1:  # Don't sleep on the last attempt
+                logger.info(f"⏰ Balance seems low (€{total_capital:.2f} < €{expected_min_balance:.2f}), waiting 2 more seconds for settlement...")
+                await asyncio.sleep(2)
+        
+        logger.info(f"💰 Final capital after liquidation: €{total_capital:.2f}")
+        
+        # Summary of liquidation phase
+        if liquidation_attempts > 0:
+            liquidation_success_rate = (liquidation_successes / liquidation_attempts) * 100
+            logger.info(f"📊 Liquidation Summary: {liquidation_successes}/{liquidation_attempts} successful ({liquidation_success_rate:.1f}%)")
+            
+            # If we had positions to liquidate but none succeeded, that's a critical failure
+            if liquidation_successes == 0:
+                logger.error("❌ CRITICAL: All liquidation attempts failed! Stopping bot.")
+                return False
+        elif existing_positions:
+            # We had positions but skipped them all due to low value
+            skipped_count = len(existing_positions)
+            logger.info(f"📊 Liquidation Summary: {skipped_count} positions skipped (all below €{self.min_liquidation_value} minimum)")
+            logger.info("✅ No liquidation needed - all positions below minimum threshold")
+        
+        # Calculate buffer - keep minimal cash buffer for rebalancing
+        buffer_amount = max(2.0, min(5.0, total_capital * 0.02))  # 2% buffer, min €2, max €5
+        investable_capital = total_capital - buffer_amount
+        
+        if investable_capital < 5.0:
+            logger.warning(f"💸 Insufficient capital for reinvestment: €{investable_capital:.2f} (need ≥€5)")
+            logger.info("✅ Liquidation phase completed, but skipping reinvestment due to insufficient capital")
+            logger.info("🔄 REBALANCING PHASE COMPLETED (liquidation only)")
+            return True  # Allow continued operation with liquidation-only rebalancing
+        
+        logger.info(f"🎯 Investable capital: €{investable_capital:.2f} (buffer: €{buffer_amount:.2f})")
+        
+        # 2. ANALYSIS PHASE: Get all market data and LLM recommendations
+        logger.info("📊 PHASE 2: LLM PORTFOLIO ANALYSIS")
+        
+        # Gather market data for all available assets
+        logger.info(f"📈 Analyzing {len(self.assets)} available cryptocurrencies...")
+        all_market_data = []
+        for asset in self.assets:
+            market_data = self.data_fetcher.get_market_data(asset)
+            if market_data:
+                market_data['timestamp'] = datetime.now().isoformat()
+                all_market_data.append(market_data)
+        
+        if len(all_market_data) < 5:
+            logger.error(f"❌ Insufficient market data: only {len(all_market_data)} assets available (need ≥5)")
+            return False  # Critical failure - stop bot operation
+        
+        logger.info(f"✅ Market data gathered for {len(all_market_data)} cryptocurrencies")
+        
+        async with LLMClient() as llm_client:
+            # Get LLM's top 5 crypto recommendations
+            logger.info("🤖 REQUESTING TOP 5 CRYPTO RECOMMENDATIONS...")
+            top_cryptos = await llm_client.get_top_crypto_recommendations(all_market_data, investable_capital)
+            
+            recommended_symbols = top_cryptos.get('recommended_cryptos', [])
+            if len(recommended_symbols) != 5:
+                logger.error(f"❌ LLM returned {len(recommended_symbols)} recommendations (expected 5)")
+                return False  # Critical failure - stop bot operation
+            
+            logger.info("🎯 LLM SELECTED TOP 5 CRYPTOCURRENCIES:")
+            for i, symbol in enumerate(recommended_symbols, 1):
+                logger.info(f"  {i}. {symbol}")
+            
+            # Get LLM's allocation strategy
+            logger.info("🤖 REQUESTING PORTFOLIO ALLOCATION STRATEGY...")
+            allocation_decision = await llm_client.get_portfolio_allocation(
+                recommended_symbols, investable_capital, all_market_data
+            )
+            
+            allocations = allocation_decision.get('allocations', {})
+            if not allocations:
+                logger.error("❌ LLM failed to provide allocations. Using equal weights.")
+                allocations = {symbol: 20.0 for symbol in recommended_symbols}  # Equal 20% each
+            
+            # 3. INVESTMENT PHASE: Execute the new portfolio
+            logger.info("💰 PHASE 3: EXECUTING NEW PORTFOLIO")
+            
+            successful_investments = 0
+            total_invested = 0.0
+            
+            for symbol, percentage in allocations.items():
+                eur_amount = (percentage / 100) * investable_capital
+                
+                logger.info(f"🎯 Investing {percentage:.1f}% (€{eur_amount:.2f}) in {symbol}")
+                
+                # Get current market data for this specific asset
+                asset_data = next((d for d in all_market_data if d.get('symbol') == symbol), None)
+                if not asset_data:
+                    logger.warning(f"❌ No market data for {symbol}, skipping")
+                    continue
+                
+                # Use ask price for buying
+                buy_price = self.get_buy_price(asset_data)
+                
+                # Use 99.5% of allocated amount to account for fees and slippage 
+                safe_eur_amount = round(eur_amount * 0.995, 2)
+                
+                # Execute market buy order
+                success = self.trading_engine.place_order(symbol, 'buy', safe_eur_amount, None)
+                if success:
+                    # Calculate approximate amount purchased
+                    approx_crypto_amount = safe_eur_amount / buy_price
+                    # Record the buy order for position tracking
+                    self.record_buy_order(symbol, approx_crypto_amount, buy_price)
+                    
+                    successful_investments += 1
+                    total_invested += safe_eur_amount
+                    logger.info(f"✅ INVESTED: €{safe_eur_amount:.2f} in {symbol} (≈{approx_crypto_amount:.4f} tokens)")
+                else:
+                    logger.warning(f"❌ Failed to invest in {symbol}")
+            
+            # 4. SUMMARY PHASE
+            logger.info("📊 REBALANCING COMPLETE!")
+            logger.info("=" * 60)
+            logger.info(f"💸 Total Liquidated: €{total_liquidated:.2f}")
+            logger.info(f"💰 Total Capital: €{total_capital:.2f}")
+            logger.info(f"🎯 Successfully Invested: €{total_invested:.2f} in {successful_investments}/5 assets")
+            logger.info(f"💵 Remaining Cash: €{total_capital - total_invested:.2f}")
+            logger.info("📈 NEW PORTFOLIO:")
+            
+            for symbol, percentage in allocations.items():
+                eur_amount = (percentage / 100) * investable_capital
+                logger.info(f"  {symbol}: {percentage:.1f}% (€{eur_amount:.2f})")
+            
+            # Save rebalancing analysis
+            rebalancing_data = {
+                'timestamp': datetime.now().isoformat(),
+                'portfolio_name': self.portfolio_name,
+                'strategy': self.strategy,
+                'liquidated_positions': existing_positions,
+                'total_liquidated': total_liquidated,
+                'total_capital': total_capital,
+                'investable_capital': investable_capital,
+                'recommended_cryptos': recommended_symbols,
+                'allocations': allocations,
+                'successful_investments': successful_investments,
+                'total_invested': total_invested,
+                'llm_reasoning': {
+                    'crypto_selection': top_cryptos.get('reasoning', ''),
+                    'allocation_strategy': allocation_decision.get('reasoning', '')
+                }
+            }
+            self.save_analysis_data(rebalancing_data, "rebalancing")
+            logger.info("💾 Rebalancing analysis saved")
+            logger.info("🔄 PORTFOLIO REBALANCING COMPLETE!")
+            
+            return True  # Successful rebalancing - continue with normal operation
 
 async def main():
     """Main function to run the bot"""
