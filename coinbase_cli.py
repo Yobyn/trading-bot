@@ -40,6 +40,10 @@ async def main():
                        action='store_true',
                        help='Liquidate all holdings and rebalance based on LLM top 5 crypto recommendations')
     
+    parser.add_argument('--sell-crypto', 
+                       type=str,
+                       help='Sell a specific cryptocurrency on startup (e.g., BTC, ETH, SOL, ADA)')
+    
     args = parser.parse_args()
     
     # Create bot
@@ -55,6 +59,14 @@ async def main():
     print(f"⏰ Interval: {args.interval} minutes")
     print(f"🧪 Test Mode: {'Yes' if args.test else 'No'}")
     print(f"🔄 Rebalance Mode: {'Yes' if args.rebalance else 'No'}")
+    
+    # Show sell crypto flag if specified
+    if args.sell_crypto:
+        print(f"🔴 Startup Sell: {args.sell_crypto}")
+    
+    # Show helpful tips
+    if not args.sell_crypto and not args.rebalance and not args.test:
+        print("💡 Tip: Use --sell-crypto SYMBOL to sell a specific crypto on startup")
     
     # Fetch live balance if live trading is enabled (after showing basic info)
     if config.trading_enabled:
@@ -72,10 +84,33 @@ async def main():
     if args.test and not config.trading_enabled:
         bot.trading_engine.set_paper_balance(args.paper_balance)
     
+    # Execute startup sell if specified
+    if args.sell_crypto:
+        print(f"\n🔴 Executing startup sell for {args.sell_crypto}...")
+        await bot.initialize()  # Ensure bot is initialized
+        sell_success = await bot.sell_specific_crypto(args.sell_crypto)
+        
+        if sell_success:
+            print(f"✅ Successfully sold {args.sell_crypto} on startup!")
+            # Update balance display
+            if config.trading_enabled:
+                updated_balance = bot.trading_engine.get_account_balance()
+                print(f"💰 Updated Balance: €{updated_balance:.2f}")
+            else:
+                print(f"💸 Updated Paper Balance: €{bot.trading_engine.paper_balance:.2f}")
+        else:
+            print(f"❌ Failed to sell {args.sell_crypto} on startup")
+            
+        # If only selling crypto and not continuing with other operations, exit
+        if not args.rebalance and not args.test:
+            print("🔴 Startup sell completed. To continue with normal trading, run without --sell-crypto flag.")
+            return
+    
     if args.rebalance:
         # Run rebalancing cycle
         print("\n🔄 Running rebalancing cycle...")
-        await bot.initialize()
+        if not args.sell_crypto:  # Only initialize if not already done by sell_crypto
+            await bot.initialize()
         rebalancing_success = await bot.run_rebalancing_cycle()
         
         if rebalancing_success:
@@ -109,12 +144,15 @@ async def main():
     elif args.test:
         # Run single test cycle
         print("\n🧪 Running test cycle...")
-        await bot.initialize()
+        if not args.sell_crypto:  # Only initialize if not already done by sell_crypto
+            await bot.initialize()
         await bot.run_smart_allocation_cycle()
         print("✅ Test cycle completed!")
     else:
         # Start continuous bot
         print("\n🚀 Starting Coinbase Smart Allocation Bot...")
+        if not args.sell_crypto:  # Only initialize if not already done by sell_crypto
+            await bot.initialize()
         while True:
             try:
                 await bot.run_smart_allocation_cycle()

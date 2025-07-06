@@ -916,8 +916,51 @@ class CoinbaseSmartAllocationBot:
         
         logger.info("Coinbase Smart Allocation Bot initialized successfully!")
     
+    async def sell_specific_crypto(self, symbol: str) -> bool:
+        """Sell a specific cryptocurrency on startup
+        
+        Args:
+            symbol: The crypto symbol to sell (e.g., 'BTC', 'ETH', 'SOL')
+            
+        Returns:
+            bool: True if successful, False otherwise
+        """
+        logger.info(f"🔴 STARTUP SELL: Attempting to sell all {symbol} holdings...")
+        
+        # Normalize symbol to include /EUR
+        if '/' not in symbol:
+            symbol = f"{symbol}/EUR"
+        
+        # Detect existing positions
+        existing_positions = self.detect_existing_positions()
+        
+        # Find the position to sell
+        position = existing_positions.get(symbol)
+        if not position:
+            logger.warning(f"⚠️ No {symbol} position found to sell")
+            return False
+        
+        amount = position['amount']
+        eur_value = position['eur_value']
+        
+        logger.info(f"📊 Found {symbol} position: {amount:.6f} tokens = €{eur_value:.2f}")
+        
+        # Skip if position is too small
+        if eur_value < self.min_liquidation_value:
+            logger.warning(f"⚠️ {symbol} position too small (€{eur_value:.2f} < €{self.min_liquidation_value:.2f}). Skipping.")
+            return False
+        
+        # Execute the sell order
+        logger.info(f"🔴 Selling {amount:.6f} {symbol} at market price...")
+        success = self.trading_engine.place_order(symbol, 'sell', amount, None)  # Market order
+        
+        if success:
+            logger.info(f"✅ Successfully sold {amount:.6f} {symbol} (€{eur_value:.2f})")
+            return True
+        else:
+            logger.error(f"❌ Failed to sell {symbol}")
+            return False
 
-    
     async def run_smart_allocation_cycle(self):
         """Run one complete smart allocation cycle with LLM-confirmed buy and sell logic and full LLM request/response logging"""
         logger.info("🔄 Starting smart allocation cycle...")
@@ -955,14 +998,21 @@ class CoinbaseSmartAllocationBot:
                     # Get full market data for this asset to send to LLM
                     market_data = self.data_fetcher.get_market_data(symbol)
                     if market_data:
-                        # For SELL decisions, use weekly average for shorter-term momentum analysis
+                        # Prepare comprehensive market data for LLM with ALL available information
+                        yearly_avg = market_data.get('yearly_average', current_price)
                         weekly_avg = market_data.get('weekly_average', current_price)
+                        
+                        # Calculate price vs both averages - let LLM decide what's relevant
+                        if yearly_avg > 0:
+                            price_vs_yearly_avg_pct = ((current_price - yearly_avg) / yearly_avg) * 100
+                        else:
+                            price_vs_yearly_avg_pct = 0
+                            
                         if weekly_avg > 0:
                             price_vs_weekly_avg_pct = ((current_price - weekly_avg) / weekly_avg) * 100
                         else:
                             price_vs_weekly_avg_pct = 0
                         
-                        # Prepare comprehensive market data for LLM (convert all to regular Python types)
                         # Use sell price (bid) for current valuation
                         sell_price = self.get_sell_price(market_data)
                         llm_sell_request = {
@@ -971,9 +1021,11 @@ class CoinbaseSmartAllocationBot:
                             'buy_price': float(position.get('buy_price', current_price)),
                             'profit_loss_pct': float(position.get('profit_loss_pct', 0)),
                             'profit_loss_eur': float(position.get('profit_loss_eur', 0)),
-                            'price_vs_weekly_avg_pct': float(price_vs_weekly_avg_pct),  # Use weekly average for sell decisions
+                            'price_vs_yearly_avg_pct': float(price_vs_yearly_avg_pct),  # Provide yearly comparison
+                            'price_vs_weekly_avg_pct': float(price_vs_weekly_avg_pct),  # Provide weekly comparison
                             'volume_24h': market_data.get('volume', 0),
-                            'weekly_average': float(weekly_avg),  # Use weekly average for sell decisions
+                            'yearly_average': float(yearly_avg),  # Provide yearly average
+                            'weekly_average': float(weekly_avg),  # Provide weekly average
                             'bid': float(market_data.get('bid', current_price)),
                             'ask': float(market_data.get('ask', current_price)),
                             # Technical indicators
@@ -987,13 +1039,15 @@ class CoinbaseSmartAllocationBot:
                             'timestamp': datetime.now().isoformat()
                         }
                     else:
-                        # Fallback to basic data if market data unavailable
+                        # Fallback to basic data if market data unavailable - provide all data points
                         llm_sell_request = {
                             'symbol': symbol,
                             'current_price': float(current_price),
-                            'price_vs_weekly_avg_pct': 0,  # Use weekly average for sell decisions
+                            'price_vs_yearly_avg_pct': 0,  # No historical data available
+                            'price_vs_weekly_avg_pct': 0,  # No historical data available
                             'volume_24h': 0,
-                            'weekly_average': float(current_price),  # Use weekly average for sell decisions
+                            'yearly_average': float(current_price),  # Fallback to current price
+                            'weekly_average': float(current_price),  # Fallback to current price
                             'rsi': 50,  # Neutral RSI
                             'macd': 0,  # Neutral MACD
                             'ma_20': float(current_price),
@@ -1009,35 +1063,37 @@ class CoinbaseSmartAllocationBot:
                     logger.info(f"  Original Buy Price: €{llm_sell_request.get('buy_price', 0):.2f}")
                     logger.info(f"  Profit/Loss: {llm_sell_request.get('profit_loss_pct', 0):+.1f}% (€{llm_sell_request.get('profit_loss_eur', 0):+.2f})")
                     logger.info(f"  Position: {llm_sell_request.get('current_position', 'Unknown')}")
-                    logger.info(f"📊 SELL DECISION: Using weekly average (€{llm_sell_request.get('weekly_average', 0):.6f}) for short-term momentum analysis")
+                    logger.info(f"📊 DATA TO LLM: Providing comprehensive market data (yearly avg: €{llm_sell_request.get('yearly_average', 0):.6f}, weekly avg: €{llm_sell_request.get('weekly_average', 0):.6f}) for LLM decision")
                     
                     llm_sell_decision = await llm_client.get_trading_decision(llm_sell_request)
                     # Note: LLM client now logs its own formatted decision, so we don't need to log it again here
                     
                     if isinstance(llm_sell_decision, dict) and llm_sell_decision.get('action', '').upper() == 'SELL':
-                        logger.info(f"🔴 SELL DECISION: LLM recommends selling {amount:.6f} {symbol}. Executing sell order...")
+                        logger.info(f"🔴 LLM DECIDED: SELL {amount:.6f} {symbol}. Bot executing LLM's decision...")
                         # Use market order to sell all holdings
                         success = self.trading_engine.place_order(symbol, 'sell', amount, None)  # Market order
                         if success:
-                            logger.info(f"✅ SOLD: {amount:.6f} {symbol} at market price. Position closed.")
+                            logger.info(f"✅ EXECUTED: Sold {amount:.6f} {symbol} at market price per LLM decision.")
                             # Update available capital after sale
                             available_capital = self.get_eur_balance()
                             logger.info(f"💰 Updated EUR balance: €{available_capital:.2f}")
                         else:
-                            logger.warning(f"❌ Failed to sell {symbol}. Will retry next cycle.")
+                            logger.warning(f"❌ Failed to execute LLM's sell decision for {symbol}. Will retry next cycle.")
                             # Continue to next position instead of returning
                             continue
                     else:
-                        logger.info(f"🟢 HOLD DECISION: LLM recommends holding {symbol}. No action taken.")
+                        logger.info(f"🟢 LLM DECIDED: HOLD {symbol}. Bot taking no action per LLM decision.")
             
             # 2. SEPARATE EUR INVESTMENT DECISION: If have EUR cash, use LLM to select best asset
             logger.info("💰 ISOLATED EUR INVESTMENT DECISION: Evaluating available EUR cash...")
-            # Keep a buffer of €2-5 EUR (scale with portfolio size)
-            buffer_amount = max(2.0, min(5.0, available_capital * 0.1))  # 10% buffer, min €2, max €5
-            investable_capital = available_capital - buffer_amount
             
-            if investable_capital >= 1:
-                logger.info(f"🎯 EUR INVESTMENT: €{investable_capital:.2f} available (buffer: €{buffer_amount:.2f})")
+            # NEW LOGIC: Only invest if available cash > €10, then invest full amount
+            if available_capital > 10.0:
+                # Reserve only €1 for fees/slippage, invest the rest
+                fees_reserve = 1.0
+                investable_capital = available_capital - fees_reserve
+                
+                logger.info(f"🎯 EUR INVESTMENT: €{available_capital:.2f} available, investing €{investable_capital:.2f} (fees reserve: €{fees_reserve:.2f})")
                 all_market_data = [self.data_fetcher.get_market_data(asset) for asset in self.assets]
                 all_market_data = [d for d in all_market_data if d]
                 if not all_market_data:
@@ -1051,7 +1107,7 @@ class CoinbaseSmartAllocationBot:
                 logger.info(f"🤖 LLM asset selection request (ISOLATED):")
                 logger.info(f"  Available Assets: {len(all_market_data)}")
                 logger.info(f"  Total Capital: €{available_capital:.2f}")
-                logger.info(f"  Buffer: €{buffer_amount:.2f}")
+                logger.info(f"  Fees Reserve: €{fees_reserve:.2f}")
                 logger.info(f"  Investable: €{investable_capital:.2f}")
                 
                 best_asset = await llm_client.get_asset_selection(all_market_data, portfolio_value, investable_capital)
@@ -1064,7 +1120,7 @@ class CoinbaseSmartAllocationBot:
                     
                 selected = next((d for d in all_market_data if d['symbol'] == symbol), all_market_data[0])
                 logger.info(f"LLM selected {symbol} for BUY allocation: €{selected['current_price']:.6f} (yearly avg: €{selected['yearly_average']:.6f}, weekly avg: €{selected['weekly_average']:.6f})")
-                logger.info(f"📊 BUY DECISION: Using yearly average for long-term value assessment")
+                logger.info(f"📊 LLM SELECTED: {symbol} - Bot will execute LLM's buy decision")
                 
                 # Calculate quantity to buy - use ask price for buy orders
                 buy_price = self.get_buy_price(selected)  # Use ask price for buying
@@ -1075,20 +1131,20 @@ class CoinbaseSmartAllocationBot:
                 formatted_price = float(formatted_price_str) if formatted_price_str else buy_price
                 
                 # For market orders, we specify the EUR amount to spend (quote_size)
-                # Use 95% of investable capital (which already excludes the buffer)
-                safe_quote_amount = round(investable_capital * 0.95, 2)  # Round to 2 decimal places for EUR precision
-                logger.info(f"Market buy order: spending €{safe_quote_amount:.2f} EUR at ask price €{buy_price:.6f} (95% of investable capital, buffer: €{buffer_amount:.2f})")
-                success = self.trading_engine.place_order(symbol, 'buy', safe_quote_amount, None)  # Market order with EUR amount
+                # Invest the full investable capital (all available cash minus €1 fees reserve)
+                quote_amount = round(investable_capital, 2)  # Round to 2 decimal places for EUR precision
+                logger.info(f"Market buy order: spending €{quote_amount:.2f} EUR at ask price €{buy_price:.6f} (full available capital minus €{fees_reserve:.2f} fees reserve)")
+                success = self.trading_engine.place_order(symbol, 'buy', quote_amount, None)  # Market order with EUR amount
                 if success:
                     # Calculate approximate amount purchased (we don't know exact amount until order executes)
-                    approx_crypto_amount = safe_quote_amount / buy_price
+                    approx_crypto_amount = quote_amount / buy_price
                     # Record the buy order for position tracking using buy price
                     self.record_buy_order(symbol, approx_crypto_amount, buy_price)
-                    logger.info(f"✅ Market buy executed: spent €{safe_quote_amount:.2f} EUR on {symbol} (approx {approx_crypto_amount:.2f} tokens). Position opened.")
+                    logger.info(f"✅ EXECUTED: Market buy per LLM decision - spent €{quote_amount:.2f} EUR on {symbol} (approx {approx_crypto_amount:.6f} tokens).")
                 else:
-                    logger.warning(f"❌ Failed to buy {symbol}. Will retry next cycle.")
+                    logger.warning(f"❌ Failed to execute LLM's buy decision for {symbol}. Will retry next cycle.")
             else:
-                logger.info(f"💸 Insufficient funds: €{investable_capital:.2f} available (need ≥€1, buffer: €{buffer_amount:.2f})")
+                logger.info(f"💸 Waiting for more capital: €{available_capital:.2f} available (need >€10.00 to invest)")
         
         # Save analysis data
         analysis_data = {

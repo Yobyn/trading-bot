@@ -141,13 +141,21 @@ Respond with the asset symbol and your reasoning."""
         # First, try to find explicit asset mentions at start of response or after key phrases
         response_upper = response.upper()
         
+        # Debug logging to see what we're working with
+        logger.debug(f"🔍 Parsing asset selection from response: {response_upper[:100]}...")
+        
         # Look for patterns like "APE/EUR", "BTC/EUR" etc. at start or after keywords
         for asset in assets:
             symbol = asset.get('symbol', '')
             symbol_upper = symbol.upper()
+            base_currency = symbol.split('/')[0] if '/' in symbol else symbol
+            base_upper = base_currency.upper()
             
-            # Check if symbol appears at start of response
+            logger.debug(f"🔍 Checking patterns for {symbol} (base: {base_currency})")
+            
+            # Check if full symbol appears at start of response
             if response_upper.startswith(symbol_upper):
+                logger.debug(f"✅ Found {symbol} at start of response")
                 selected_symbol = symbol
                 break
                 
@@ -162,41 +170,97 @@ Respond with the asset symbol and your reasoning."""
                 # Handle "recommend investing in SYMBOL" pattern
                 rf'\brecommend\s+investing\s+in\s+{re.escape(symbol_upper)}\b',
                 rf'\bwould\s+recommend\s+investing\s+in\s+{re.escape(symbol_upper)}\b',
+                # Base currency patterns - THIS IS CRUCIAL
+                rf'\b(?:recommend|select|choose)\s+(?:investing\s+in\s+)?{re.escape(base_upper)}\b',
+                rf'\b(?:investing\s+in|invest\s+in)\s+{re.escape(base_upper)}\b',
+                rf'\brecommend\s+investing\s+in\s+{re.escape(base_upper)}\b',
+                rf'\bwould\s+recommend\s+investing\s+in\s+{re.escape(base_upper)}\b',
+                rf'\binvest\s+in\s+(?:is\s+)?{re.escape(base_upper)}\b',
+                rf'\bbest\s+asset\s+to\s+invest\s+in\s+is\s+{re.escape(base_upper)}\b',
+                # NEW PATTERNS to handle common LLM phrasings
+                rf'\bthe\s+best\s+asset\s+to\s+invest\s+in\s+is\s+{re.escape(symbol_upper)}[.,!]?',
+                rf'\bthe\s+best\s+asset\s+to\s+invest\s+in\s+is\s+{re.escape(base_upper)}[.,!]?',
+                rf'\binvest\s+all\s+.*\s+in\s+{re.escape(symbol_upper)}[.,!]?',
+                rf'\binvest\s+all\s+.*\s+in\s+{re.escape(base_upper)}[.,!]?',
+                rf'\brecommend\s+investing\s+all\s+.*\s+in\s+{re.escape(symbol_upper)}[.,!]?',
+                rf'\brecommend\s+investing\s+all\s+.*\s+in\s+{re.escape(base_upper)}[.,!]?',
+                rf'\bi\s+recommend\s+investing\s+.*\s+in\s+{re.escape(symbol_upper)}[.,!]?',
+                rf'\bi\s+recommend\s+investing\s+.*\s+in\s+{re.escape(base_upper)}[.,!]?',
+                rf'\btherefore[,\s]*\s*i\s+recommend\s+investing\s+.*\s+in\s+{re.escape(symbol_upper)}[.,!]?',
+                rf'\btherefore[,\s]*\s*i\s+recommend\s+investing\s+.*\s+in\s+{re.escape(base_upper)}[.,!]?',
+                # SIMPLIFIED "would recommend" patterns that actually work
+                rf'WOULD\s+RECOMMEND\s+INVESTING\s+IN\s+{re.escape(symbol_upper)}',
+                rf'WOULD\s+RECOMMEND\s+INVESTING\s+IN\s+{re.escape(base_upper)}',
+                rf'I\s+WOULD\s+RECOMMEND\s+INVESTING\s+IN\s+{re.escape(symbol_upper)}',
+                rf'I\s+WOULD\s+RECOMMEND\s+INVESTING\s+IN\s+{re.escape(base_upper)}',
+                rf'RECOMMEND\s+INVESTING\s+IN\s+{re.escape(symbol_upper)}',
+                rf'RECOMMEND\s+INVESTING\s+IN\s+{re.escape(base_upper)}',
+                rf'INVESTING\s+IN\s+{re.escape(symbol_upper)}',
+                rf'INVESTING\s+IN\s+{re.escape(base_upper)}',
+                # Handle punctuation variations
+                rf'\b{re.escape(symbol_upper)}[.,!]?\s*$',  # Symbol at end of sentence
+                rf'\b{re.escape(base_upper)}[.,!]?\s*$',    # Base currency at end of sentence
             ]
             
-            for pattern in patterns:
+            for i, pattern in enumerate(patterns):
                 if re.search(pattern, response_upper, re.MULTILINE):
+                    logger.debug(f"✅ Found {symbol} using pattern {i}: {pattern}")
                     selected_symbol = symbol
                     break
             
             if selected_symbol:
                 break
-        
-        # If no explicit symbol found, look for mentions of the base currency (like "APE", "BTC")
+
+        # If no explicit symbol found, do a second pass looking for standalone base currencies
         if not selected_symbol:
+            logger.debug("🔍 Second pass: looking for standalone base currencies")
             for asset in assets:
                 symbol = asset.get('symbol', '')
                 base_currency = symbol.split('/')[0] if '/' in symbol else symbol
                 base_upper = base_currency.upper()
+                
+                logger.debug(f"🔍 Second pass checking {base_currency}")
                 
                 # Look for base currency mentions with investment context
                 patterns = [
                     rf'\b(?:recommend|investing in|select|choose)\s+{re.escape(base_upper)}\b',
                     rf'\b{re.escape(base_upper)}\s+(?:\(|offers|has|is)',
                     rf'^\s*{re.escape(base_upper)}\b',  # At start of line
+                    rf'\binvest\s+in\s+is\s+{re.escape(base_upper)}\b',  # "invest in is BAT"
+                    rf'\basset\s+to\s+invest\s+in\s+is\s+{re.escape(base_upper)}\b',  # "asset to invest in is BAT"
+                    # NEW COMPREHENSIVE PATTERNS for second pass
+                    rf'\bthe\s+best\s+asset\s+to\s+invest\s+in\s+is\s+{re.escape(base_upper)}[.,!]?',
+                    rf'\binvest\s+all\s+.*\s+in\s+{re.escape(base_upper)}[.,!]?',
+                    rf'\brecommend\s+investing\s+all\s+.*\s+in\s+{re.escape(base_upper)}[.,!]?',
+                    rf'\bi\s+recommend\s+investing\s+.*\s+in\s+{re.escape(base_upper)}[.,!]?',
+                    rf'\btherefore[,\s]*\s*i\s+recommend\s+investing\s+.*\s+in\s+{re.escape(base_upper)}[.,!]?',
+                    rf'\b{re.escape(base_upper)}[.,!]?\s*$',  # Base currency at end of sentence
+                    # SIMPLIFIED "would recommend" patterns for second pass
+                    rf'WOULD\s+RECOMMEND\s+INVESTING\s+IN\s+{re.escape(base_upper)}',
+                    rf'I\s+WOULD\s+RECOMMEND\s+INVESTING\s+IN\s+{re.escape(base_upper)}',
+                    rf'RECOMMEND\s+INVESTING\s+IN\s+{re.escape(base_upper)}',
+                    rf'INVESTING\s+IN\s+{re.escape(base_upper)}',
                 ]
                 
-                for pattern in patterns:
+                for i, pattern in enumerate(patterns):
                     if re.search(pattern, response_upper, re.MULTILINE):
+                        logger.debug(f"✅ Second pass found {symbol} using pattern {i}: {pattern}")
                         selected_symbol = symbol
                         break
                 
                 if selected_symbol:
                     break
-        
+
+        # Log the final result
+        if selected_symbol:
+            logger.debug(f"🎯 Final selection: {selected_symbol}")
+        else:
+            logger.debug("❌ No asset matched, will default to first asset")
+            
         # Default to first asset if no clear selection
         if not selected_symbol and assets:
             selected_symbol = assets[0].get('symbol', '')
+            logger.debug(f"🔄 Defaulted to first asset: {selected_symbol}")
         
         decision = {
             "symbol": selected_symbol,
@@ -244,8 +308,10 @@ Respond with the asset symbol and your reasoning."""
         
         prompt += f"""
         Price vs Yearly Avg: {market_data.get('price_vs_yearly_avg_pct', 'Unknown')}%
+        Price vs Weekly Avg: {market_data.get('price_vs_weekly_avg_pct', 'Unknown')}%
         Volume 24h: {market_data.get('volume_24h', 'Unknown')}
         Yearly Average: {market_data.get('yearly_average', 'Unknown')}
+        Weekly Average: {market_data.get('weekly_average', 'Unknown')}
         RSI: {market_data.get('rsi', 'Unknown')}
         MACD: {market_data.get('macd', 'Unknown')}
         Moving Average (20): {market_data.get('ma_20', 'Unknown')}
