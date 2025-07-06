@@ -805,10 +805,11 @@ class CoinbaseSmartAllocationBot:
                             # Use sell price (bid) for position valuation - what we could sell for
                             current_price = self.get_sell_price(market_data)
                             eur_value = crypto_amount * current_price
-                            # Get original buy price from history or estimate from weekly average
+                            # Get original buy price from history or add current price if missing
                             position_history = self.load_position_history()
                             buy_price = None
                             profit_loss_pct = None
+                            position_history_updated = False
                             
                             if symbol in position_history:
                                 buy_price = position_history[symbol].get('buy_price')
@@ -820,12 +821,25 @@ class CoinbaseSmartAllocationBot:
                             else:
                                 logger.warning(f"⚠️ No position history found for {symbol} in position_history.json")
                             
-                            # If no buy price history, estimate from weekly average (conservative approach)
+                            # If no buy price history, use current price and add to position history
                             if buy_price is None:
-                                weekly_avg = market_data.get('weekly_average', current_price)
-                                buy_price = weekly_avg  # Assume bought at weekly average
-                                profit_loss_pct = ((current_price - buy_price) / buy_price) * 100
-                                logger.info(f"📊 Estimating buy price for {symbol} as weekly average: €{buy_price:.6f}")
+                                buy_price = current_price  # Use current price as requested
+                                profit_loss_pct = 0.0  # No profit/loss since we're setting current price as buy price
+                                logger.info(f"📊 Adding missing position to history: {symbol} with current price €{buy_price:.6f}")
+                                
+                                # Add the missing position to position history
+                                position_history[symbol] = {
+                                    'buy_price': buy_price,
+                                    'total_amount': crypto_amount,
+                                    'buy_timestamp': datetime.now().isoformat(),
+                                    'auto_added': True  # Flag to indicate this was auto-added
+                                }
+                                position_history_updated = True
+                            
+                            # Save updated position history if we added a missing position
+                            if position_history_updated:
+                                self.save_position_history(position_history)
+                                logger.info(f"💾 Updated position_history.json with missing position: {symbol}")
                             
                             positions[symbol] = {
                                 'amount': crypto_amount,
