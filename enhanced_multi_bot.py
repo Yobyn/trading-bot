@@ -252,6 +252,9 @@ class EnhancedMultiAssetBot:
         try:
             logger.info("🔄 Starting enhanced multi-asset trading cycle...")
             
+            # 0. Clean up position history (remove entries for positions no longer held)
+            self.coinbase_bot.cleanup_position_history()
+            
             # 1. Analyze all assets
             analysis_results = await self.analyze_all_assets()
             
