@@ -279,19 +279,50 @@ Respond with the asset symbol and your reasoning."""
 
     async def get_trading_decision(self, market_data: Dict[str, Any]) -> Dict[str, Any]:
         """Get trading decision from LLM based on market data"""
-        system_prompt = """You are an expert trading bot. Analyze the market data and provide a trading decision.
         
-        Available actions:
-        - BUY: Enter a long position (use in INVESTMENT PHASE when looking for new opportunities)
-        - SELL: Enter a short position  
-        - HOLD: No action, maintain current position
-        - CLOSE: Close current position (use in MANAGEMENT PHASE to free up cash)
+        # Get context information
+        trading_phase = market_data.get('trading_phase', 'INVESTMENT')
+        current_position = market_data.get('current_position', {})
+        has_position = current_position.get('has_position', False)
         
-        Pay attention to the TRADING CONTEXT:
-        - INVESTMENT PHASE: Focus on finding good BUY opportunities with available cash
-        - MANAGEMENT PHASE: Focus on whether to SELL/CLOSE positions to free up cash for new investments
+        # Build context-aware system prompt
+        if trading_phase == "INVESTMENT" and not has_position:
+            # Investment phase, no current position - can only BUY or HOLD
+            available_actions = """Available actions:
+        - BUY: Enter a long position with available cash
+        - HOLD: Skip this asset and look for better opportunities"""
+            context_instruction = "INVESTMENT PHASE: You're looking for new investments with available cash. Focus on whether this is a good BUY opportunity."
+            
+        elif trading_phase == "INVESTMENT" and has_position:
+            # Investment phase, has position - can add more, hold, or reduce
+            available_actions = """Available actions:
+        - BUY: Add more to the existing position
+        - HOLD: Maintain current position size
+        - SELL: Reduce position size partially
+        - CLOSE: Close entire position"""
+            context_instruction = "INVESTMENT PHASE: You have available cash and an existing position. Consider whether to add more, maintain, or reduce the position."
+            
+        elif trading_phase == "MANAGEMENT" and has_position:
+            # Management phase, has position - focus on selling to free cash
+            available_actions = """Available actions:
+        - HOLD: Keep the current position
+        - SELL: Reduce position size to free up some cash  
+        - CLOSE: Close entire position to free up maximum cash"""
+            context_instruction = "MANAGEMENT PHASE: You have limited cash and need to manage existing positions. Focus on whether to SELL/CLOSE this position to free up cash for new opportunities."
+            
+        else:
+            # Fallback - shouldn't happen in normal operation
+            available_actions = """Available actions:
+        - HOLD: No action"""
+            context_instruction = "No clear trading context. Default to HOLD for safety."
         
-        Respond with ONLY the action (BUY/SELL/HOLD/CLOSE) and optionally a brief reason.
+        system_prompt = f"""You are an expert trading bot. Analyze the market data and provide a trading decision.
+        
+        {available_actions}
+        
+        TRADING CONTEXT: {context_instruction}
+        
+        Respond with ONLY the action and optionally a brief reason.
         Keep responses concise and actionable."""
         
         # Check if this is a sell decision with profit/loss data
