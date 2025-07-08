@@ -113,8 +113,19 @@ class EnhancedMultiAssetBot:
                 return None
             decision = await self.llm_client.get_trading_decision(market_data)
             
-            # Calculate position size based on strategy and existing positions
-            portfolio_value = self.coinbase_bot.trading_engine.get_account_balance()
+            # Get actual portfolio value from Coinbase account
+            try:
+                portfolio_value = self.coinbase_bot.trading_engine.get_account_balance()
+                if portfolio_value == 0:
+                    # Fallback to detecting existing positions total value
+                    total_value = sum(pos['eur_value'] for pos in existing_positions.values()) if existing_positions else 100  # Minimum €100
+                    portfolio_value = max(total_value * 2, 100)  # Assume positions are 50% of total portfolio
+                    logger.warning(f"Using estimated portfolio value: €{portfolio_value:.2f}")
+            except Exception as e:
+                logger.error(f"Could not get account balance: {e}. Using position-based estimate.")
+                total_value = sum(pos['eur_value'] for pos in existing_positions.values()) if existing_positions else 100
+                portfolio_value = max(total_value * 2, 100)
+                logger.warning(f"Using estimated portfolio value: €{portfolio_value:.2f}")
             
             # Check if asset has predefined allocation, otherwise use equal allocation
             if "allocation" in asset:
@@ -252,8 +263,18 @@ class EnhancedMultiAssetBot:
             await self.execute_trades(analysis_results)
             
             # 3. Log portfolio summary
-            portfolio = self.trading_engine.get_portfolio_summary()
-            logger.info(f"📊 Portfolio: ${portfolio['portfolio_value']:.2f} | P&L: ${portfolio['total_pnl']:.2f} | Positions: {portfolio['position_count']}")
+            try:
+                # Get actual portfolio value from Coinbase
+                portfolio_value = self.coinbase_bot.trading_engine.get_account_balance()
+                existing_positions = self.coinbase_bot.detect_existing_positions()
+                total_position_value = sum(pos['eur_value'] for pos in existing_positions.values())
+                total_pnl = sum(pos.get('profit_loss_eur', 0) for pos in existing_positions.values())
+                
+                logger.info(f"📊 Portfolio: €{portfolio_value:.2f} | Positions Value: €{total_position_value:.2f} | P&L: €{total_pnl:.2f} | Assets: {len(existing_positions)}")
+            except Exception as e:
+                logger.warning(f"Could not get portfolio summary: {e}")
+                portfolio = self.trading_engine.get_portfolio_summary()
+                logger.info(f"📊 Portfolio (Paper): ${portfolio['portfolio_value']:.2f} | P&L: ${portfolio['total_pnl']:.2f} | Positions: {portfolio['position_count']}")
             
             # 4. Save analysis results
             self.save_analysis_results(analysis_results)

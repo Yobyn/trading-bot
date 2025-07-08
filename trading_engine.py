@@ -33,6 +33,7 @@ class TradingEngine:
         self.stop_loss_pct = config.stop_loss_pct
         self.take_profit_pct = config.take_profit_pct
         self.max_daily_loss = config.max_daily_loss
+        self.max_portfolio_risk = config.max_portfolio_risk
         
     async def execute_trade(self, decision: Dict[str, Any], market_data: Dict[str, Any]) -> Dict[str, Any]:
         """Execute a trade based on LLM decision"""

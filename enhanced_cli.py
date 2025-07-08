@@ -14,7 +14,7 @@ from loguru import logger
 async def start_enhanced_bot(args):
     """Start the enhanced multi-asset trading bot"""
     bot = EnhancedMultiAssetBot(
-        portfolio_name='coinbase_majors',
+        portfolio_name=args.portfolio,
         strategy_name=args.strategy
     )
     
@@ -28,7 +28,7 @@ async def start_enhanced_bot(args):
 async def test_enhanced_bot(args):
     """Test the enhanced multi-asset bot with a single cycle"""
     bot = EnhancedMultiAssetBot(
-        portfolio_name='coinbase_majors',
+        portfolio_name=args.portfolio,
         strategy_name=args.strategy
     )
     
@@ -42,7 +42,7 @@ async def test_enhanced_bot(args):
 async def status_enhanced_bot(args):
     """Show enhanced multi-asset bot status"""
     bot = EnhancedMultiAssetBot(
-        portfolio_name='coinbase_majors',
+        portfolio_name=args.portfolio,
         strategy_name=args.strategy
     )
     
