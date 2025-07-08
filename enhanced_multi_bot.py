@@ -81,6 +81,21 @@ class EnhancedMultiAssetBot:
             if not market_data:
                 return None
             
+            # Override portfolio value with actual Coinbase balance (DataFetcher defaults to 10000)
+            try:
+                actual_portfolio_value = self.coinbase_bot.trading_engine.get_account_balance()
+                if actual_portfolio_value > 0:
+                    market_data['portfolio_value'] = actual_portfolio_value
+                    logger.debug(f"💰 {asset['symbol']}: Using actual portfolio value €{actual_portfolio_value:.2f}")
+                else:
+                    # Fallback to estimated value based on existing positions
+                    total_position_value = sum(pos['eur_value'] for pos in existing_positions.values()) if existing_positions else 100
+                    estimated_portfolio = max(total_position_value * 1.5, 100)  # Assume positions are ~66% of portfolio
+                    market_data['portfolio_value'] = estimated_portfolio
+                    logger.debug(f"📊 {asset['symbol']}: Using estimated portfolio value €{estimated_portfolio:.2f}")
+            except Exception as e:
+                logger.warning(f"Could not get portfolio value for {asset['symbol']}: {e}. Using default.")
+            
             # Use provided existing positions to avoid multiple API calls
             if existing_positions is None:
                 existing_positions = self.coinbase_bot.detect_existing_positions()
@@ -111,7 +126,27 @@ class EnhancedMultiAssetBot:
             if not self.llm_client:
                 logger.error(f"LLM client not initialized for {asset['symbol']}")
                 return None
-            decision = await self.llm_client.get_trading_decision(market_data)
+            
+            try:
+                # Add timeout for LLM decision to prevent hanging
+                decision = await asyncio.wait_for(
+                    self.llm_client.get_trading_decision(market_data), 
+                    timeout=30.0  # 30 second timeout
+                )
+            except asyncio.TimeoutError:
+                logger.warning(f"LLM timeout for {asset['symbol']}, defaulting to HOLD")
+                decision = {
+                    'action': 'HOLD',
+                    'confidence': 50,
+                    'reason': 'LLM timeout - defaulting to HOLD for safety'
+                }
+            except Exception as e:
+                logger.error(f"LLM error for {asset['symbol']}: {e}, defaulting to HOLD")
+                decision = {
+                    'action': 'HOLD', 
+                    'confidence': 50,
+                    'reason': f'LLM error: {str(e)}'
+                }
             
             # Get actual portfolio value from Coinbase account
             try:
