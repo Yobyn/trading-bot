@@ -73,7 +73,7 @@ class EnhancedMultiAssetBot:
             logger.error(f"Failed to initialize enhanced multi-asset bot: {e}")
             return False
     
-    async def analyze_asset(self, asset: Dict[str, Any], existing_positions: Optional[Dict[str, Any]] = None) -> Optional[Dict[str, Any]]:
+    async def analyze_asset(self, asset: Dict[str, Any], existing_positions: Optional[Dict[str, Any]] = None, phase: str = "MANAGEMENT") -> Optional[Dict[str, Any]]:
         """Analyze a single asset and return trading decision"""
         try:
             # Get market data
@@ -102,7 +102,7 @@ class EnhancedMultiAssetBot:
             
             current_position = existing_positions.get(asset['symbol'], None)
             
-            # Add position information to market data for LLM context
+            # Add position information and trading phase to market data for LLM context
             if current_position:
                 market_data['current_position'] = {
                     'amount': current_position['amount'],
@@ -121,6 +121,13 @@ class EnhancedMultiAssetBot:
                     'has_position': False
                 }
                 logger.info(f"📊 {asset['symbol']}: No existing position")
+            
+            # Add trading phase context for LLM
+            market_data['trading_phase'] = phase
+            if phase == "INVESTMENT":
+                market_data['phase_instruction'] = "INVESTMENT PHASE: I have available cash and I'm looking for the best crypto to invest in. Focus on BUY opportunities."
+            else:
+                market_data['phase_instruction'] = "MANAGEMENT PHASE: I'm managing existing positions. Focus on whether to SELL positions to free up cash for new opportunities."
             
             # Get LLM decision for this asset
             if not self.llm_client:
@@ -207,18 +214,47 @@ class EnhancedMultiAssetBot:
             return None
     
     async def analyze_all_assets(self) -> List[Dict[str, Any]]:
-        """Analyze all assets in the portfolio"""
+        """Analyze assets based on available cash - Investment Phase vs Management Phase"""
         results = []
         
-        logger.info(f"🔄 Analyzing {len(self.assets)} assets in {self.portfolio_name} portfolio...")
-        
-        # Detect existing positions once for all assets (more efficient)
+        # Detect existing positions and available cash
         existing_positions = self.coinbase_bot.detect_existing_positions()
-        logger.info(f"📊 Found {len(existing_positions)} existing positions")
+        try:
+            available_cash = self.coinbase_bot.trading_engine.get_account_balance()
+            # Subtract current position values to get free cash
+            total_position_value = sum(pos['eur_value'] for pos in existing_positions.values())
+            free_cash = available_cash - total_position_value
+        except Exception as e:
+            logger.warning(f"Could not determine available cash: {e}")
+            free_cash = 0
         
-        for asset in self.assets:
+        # Determine strategy phase
+        if free_cash > 10 and len(existing_positions) > 0:
+            # INVESTMENT PHASE: Analyze all 41 cryptos to find best investment opportunity
+            assets_to_analyze = self.assets
+            phase = "INVESTMENT"
+            logger.info(f"💰 INVESTMENT PHASE: €{free_cash:.2f} available cash > €10")
+            logger.info(f"🔍 Analyzing ALL {len(assets_to_analyze)} cryptos to find best investment opportunity...")
+        else:
+            # MANAGEMENT PHASE: Only analyze current holdings for potential sales
+            if existing_positions:
+                # Filter assets to only current holdings
+                held_symbols = set(existing_positions.keys())
+                assets_to_analyze = [asset for asset in self.assets if asset['symbol'] in held_symbols]
+                phase = "MANAGEMENT"
+                logger.info(f"📊 MANAGEMENT PHASE: €{free_cash:.2f} available cash (≤ €10 or no positions)")
+                logger.info(f"🎯 Analyzing ONLY {len(assets_to_analyze)} current holdings for potential sales...")
+            else:
+                # No positions and no cash - analyze all for potential investment
+                assets_to_analyze = self.assets
+                phase = "INVESTMENT"
+                logger.info(f"🏁 STARTUP: No positions found, analyzing all {len(assets_to_analyze)} cryptos...")
+        
+        logger.info(f"📊 Found {len(existing_positions)} existing positions | Available Cash: €{free_cash:.2f}")
+        
+        for asset in assets_to_analyze:
             try:
-                result = await self.analyze_asset(asset, existing_positions)
+                result = await self.analyze_asset(asset, existing_positions, phase)
                 
                 if result:
                     results.append(result)

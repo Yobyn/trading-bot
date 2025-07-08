@@ -282,10 +282,14 @@ Respond with the asset symbol and your reasoning."""
         system_prompt = """You are an expert trading bot. Analyze the market data and provide a trading decision.
         
         Available actions:
-        - BUY: Enter a long position
+        - BUY: Enter a long position (use in INVESTMENT PHASE when looking for new opportunities)
         - SELL: Enter a short position  
         - HOLD: No action, maintain current position
-        - CLOSE: Close current position
+        - CLOSE: Close current position (use in MANAGEMENT PHASE to free up cash)
+        
+        Pay attention to the TRADING CONTEXT:
+        - INVESTMENT PHASE: Focus on finding good BUY opportunities with available cash
+        - MANAGEMENT PHASE: Focus on whether to SELL/CLOSE positions to free up cash for new investments
         
         Respond with ONLY the action (BUY/SELL/HOLD/CLOSE) and optionally a brief reason.
         Keep responses concise and actionable."""
@@ -318,7 +322,15 @@ Respond with the asset symbol and your reasoning."""
         Moving Average (50): {market_data.get('ma_50', 'Unknown')}
         
         Current Position: {market_data.get('current_position', 'None')}
-        Portfolio Value: {market_data.get('portfolio_value', 'Unknown')}
+        Portfolio Value: {market_data.get('portfolio_value', 'Unknown')}"""
+        
+        # Add phase instruction if available
+        if market_data.get('phase_instruction'):
+            prompt += f"""
+        
+        TRADING CONTEXT: {market_data.get('phase_instruction')}"""
+        
+        prompt += """
         
         Based on this data, what should I do? Respond with only the action and brief reason."""
         
