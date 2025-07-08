@@ -319,9 +319,18 @@ class EnhancedMultiAssetBot:
                         logger.warning(f"Insufficient capital for {asset['name']}")
                 
                 elif decision['action'] == 'SELL':
-                    # Execute sell order
-                    trade_result = await self.trading_engine.execute_trade(decision, market_data)
-                    logger.info(f"Trade Result for {asset['name']}: {trade_result['status']}")
+                    # Check if we have an existing position to close
+                    current_position = result.get('current_position')
+                    if current_position and current_position.get('has_position', False):
+                        # Convert SELL to CLOSE for existing positions
+                        decision_copy = decision.copy()
+                        decision_copy['action'] = 'CLOSE'
+                        trade_result = await self.trading_engine.execute_trade(decision_copy, market_data)
+                        logger.info(f"Closing position for {asset['name']}: {trade_result['status']}")
+                    else:
+                        # No existing position - execute as new short position
+                        trade_result = await self.trading_engine.execute_trade(decision, market_data)
+                        logger.info(f"Opening short position for {asset['name']}: {trade_result['status']}")
                 
                 else:  # HOLD
                     logger.info(f"Holding {asset['name']} - no action taken")
