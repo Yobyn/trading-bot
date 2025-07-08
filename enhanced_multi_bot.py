@@ -15,6 +15,7 @@ from llm_client import LLMClient
 from data_fetcher import DataFetcher
 from trading_engine import TradingEngine
 from asset_config import get_portfolio, get_strategy, list_available_portfolios, list_available_strategies
+from coinbase_smart_allocation_bot import CoinbaseSmartAllocationBot
 
 # Ensure analysis folder exists
 ANALYSIS_FOLDER = "analysis"
@@ -25,6 +26,7 @@ class EnhancedMultiAssetBot:
         self.llm_client = None
         self.data_fetcher = DataFetcher()
         self.trading_engine = TradingEngine()
+        self.coinbase_bot = CoinbaseSmartAllocationBot(portfolio_name, strategy_name)
         self.is_running = False
         
         # Load portfolio and strategy
@@ -71,7 +73,7 @@ class EnhancedMultiAssetBot:
             logger.error(f"Failed to initialize enhanced multi-asset bot: {e}")
             return False
     
-    async def analyze_asset(self, asset: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    async def analyze_asset(self, asset: Dict[str, Any], existing_positions: Optional[Dict[str, Any]] = None) -> Optional[Dict[str, Any]]:
         """Analyze a single asset and return trading decision"""
         try:
             # Get market data
@@ -79,27 +81,71 @@ class EnhancedMultiAssetBot:
             if not market_data:
                 return None
             
+            # Use provided existing positions to avoid multiple API calls
+            if existing_positions is None:
+                existing_positions = self.coinbase_bot.detect_existing_positions()
+            
+            current_position = existing_positions.get(asset['symbol'], None)
+            
+            # Add position information to market data for LLM context
+            if current_position:
+                market_data['current_position'] = {
+                    'amount': current_position['amount'],
+                    'eur_value': current_position['eur_value'],
+                    'buy_price': current_position.get('buy_price'),
+                    'profit_loss_pct': current_position.get('profit_loss_pct', 0),
+                    'has_position': True
+                }
+                logger.info(f"📊 {asset['symbol']}: Existing position detected - {current_position['amount']:.4f} = €{current_position['eur_value']:.2f}")
+            else:
+                market_data['current_position'] = {
+                    'amount': 0,
+                    'eur_value': 0,
+                    'buy_price': None,
+                    'profit_loss_pct': 0,
+                    'has_position': False
+                }
+                logger.info(f"📊 {asset['symbol']}: No existing position")
+            
             # Get LLM decision for this asset
+            if not self.llm_client:
+                logger.error(f"LLM client not initialized for {asset['symbol']}")
+                return None
             decision = await self.llm_client.get_trading_decision(market_data)
             
-            # Calculate position size based on strategy
-            portfolio_value = self.trading_engine.get_portfolio_summary()['portfolio_value']
-            target_position_value = portfolio_value * asset["allocation"]
+            # Calculate position size based on strategy and existing positions
+            portfolio_value = self.coinbase_bot.trading_engine.get_account_balance()
+            
+            # Check if asset has predefined allocation, otherwise use equal allocation
+            if "allocation" in asset:
+                asset_allocation = asset["allocation"]
+            else:
+                # Equal allocation across all assets in portfolio
+                asset_allocation = 1.0 / len(self.assets)
+            
+            target_position_value = portfolio_value * asset_allocation
             max_position_value = portfolio_value * self.strategy["max_position_size"]
             
-            # Use the smaller of target allocation or max position size
-            actual_position_value = min(target_position_value, max_position_value)
+            # Factor in existing position
+            current_position_value = current_position['eur_value'] if current_position else 0
+            remaining_target_value = max(0, target_position_value - current_position_value)
             
-            # Calculate quantity to trade
-            quantity = actual_position_value / market_data['current_price']
+            # Use the smaller of remaining target or max position size
+            actual_position_value = min(remaining_target_value, max_position_value)
+            
+            # Calculate quantity to trade (only if we need to add to position)
+            quantity = actual_position_value / market_data['current_price'] if actual_position_value > 0 else 0
             
             result = {
                 'asset': asset,
                 'market_data': market_data,
                 'decision': decision,
+                'current_position': current_position,
                 'position_calculation': {
-                    'target_allocation': asset["allocation"],
+                    'target_allocation': asset_allocation,
                     'target_position_value': target_position_value,
+                    'current_position_value': current_position_value,
+                    'remaining_target_value': remaining_target_value,
                     'max_position_value': max_position_value,
                     'actual_position_value': actual_position_value,
                     'quantity': quantity,
@@ -120,9 +166,13 @@ class EnhancedMultiAssetBot:
         
         logger.info(f"🔄 Analyzing {len(self.assets)} assets in {self.portfolio_name} portfolio...")
         
+        # Detect existing positions once for all assets (more efficient)
+        existing_positions = self.coinbase_bot.detect_existing_positions()
+        logger.info(f"📊 Found {len(existing_positions)} existing positions")
+        
         for asset in self.assets:
             try:
-                result = await self.analyze_asset(asset)
+                result = await self.analyze_asset(asset, existing_positions)
                 
                 if result:
                     results.append(result)
@@ -132,12 +182,21 @@ class EnhancedMultiAssetBot:
                     decision = result['decision']
                     position_calc = result['position_calculation']
                     
+                    # Show position status
+                    current_pos = result.get('current_position')
+                    position_status = "No Position"
+                    if current_pos and current_pos['amount'] > 0:
+                        profit_loss = current_pos.get('profit_loss_pct', 0)
+                        profit_indicator = "📈" if profit_loss > 0 else "📉" if profit_loss < 0 else "➡️"
+                        position_status = f"€{current_pos['eur_value']:.2f} {profit_indicator} {profit_loss:+.1f}%"
+                    
                     logger.info(
                         f"✅ {asset['name']} ({asset['symbol']}): "
-                        f"${market_data['current_price']:.4f} | "
+                        f"€{market_data['current_price']:.4f} | "
                         f"Decision: {decision['action']} | "
-                        f"Allocation: {asset['allocation']*100:.1f}% | "
-                        f"Position: ${position_calc['actual_position_value']:.2f}"
+                        f"Current: {position_status} | "
+                        f"Target: {position_calc['target_allocation']*100:.1f}% | "
+                        f"Action: €{position_calc['actual_position_value']:.2f}"
                     )
                 else:
                     logger.warning(f"❌ Failed to analyze {asset['symbol']}")
@@ -272,7 +331,7 @@ class EnhancedMultiAssetBot:
 async def main():
     """Main function to run the enhanced multi-asset trading bot"""
     # You can change these parameters
-    portfolio_name = "coinbase_majors"  # Options: crypto_majors, defi_tokens, layer1_blockchains, meme_coins, gaming_tokens, ai_tokens, custom_portfolio
+    portfolio_name = "coinbase_all_eur"  # Options: coinbase_majors, coinbase_all_eur, coinbase_majors_usd
     strategy_name = "moderate"        # Options: conservative, moderate, aggressive, scalping
     
     bot = EnhancedMultiAssetBot(portfolio_name=portfolio_name, strategy_name=strategy_name)

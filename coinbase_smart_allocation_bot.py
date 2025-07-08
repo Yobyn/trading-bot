@@ -75,9 +75,9 @@ class CoinbaseDataFetcher:
                 best_ask = 0
                 current_price = 0
             
-            # Get historical candles for yearly average (limited to 330 days due to Coinbase 350 candle limit)
+            # Get historical candles for yearly average (limited to 300 days due to Coinbase 350 candle limit)
             now = datetime.now(timezone.utc)
-            start_dt = now - timedelta(days=330)  # Reduced from 365 to stay under 350 candle limit
+            start_dt = now - timedelta(days=300)  # Conservative limit to stay well under 350 candle limit
             start = int(start_dt.timestamp())
             end = int(now.timestamp())
             
@@ -86,15 +86,15 @@ class CoinbaseDataFetcher:
                 candles = self.client.get_candles(product_id=product_id, start=str(start), end=str(end), granularity='ONE_DAY')
                 closes = [float(candle.close) for candle in candles.candles if candle.close is not None]
                 
-                # Validate we have at least 250 days of data (allowing for some missing days and weekends)
-                if len(closes) < 250:
-                    logger.warning(f"{symbol}: Only {len(closes)} days of historical data available (need 250+). Skipping this asset.")
+                # Validate we have at least 200 days of data (allowing for some missing days and weekends)
+                if len(closes) < 200:
+                    logger.warning(f"{symbol}: Only {len(closes)} days of historical data available (need 200+). Skipping this asset.")
                     return None  # Skip assets without sufficient historical data
                 
                 yearly_avg = np.mean(closes) if closes else 0
                 # Calculate weekly average (last 7 days)
                 weekly_avg = np.mean(closes[-7:]) if len(closes) >= 7 else yearly_avg
-                logger.info(f"{symbol}: Using {len(closes)} days of historical data for ~11-month average, weekly avg from last 7 days")
+                logger.info(f"{symbol}: Using {len(closes)} days of historical data for ~10-month average, weekly avg from last 7 days")
                 
             except Exception as candle_error:
                 logger.warning(f"Failed to get daily candles for {symbol}, trying hourly: {candle_error}")
@@ -628,6 +628,46 @@ class CoinbaseSmartAllocationBot:
         except Exception as e:
             logger.warning(f"Could not save position history: {e}")
     
+    def cleanup_position_history(self):
+        """Clean up position_history.json by removing entries for positions that no longer exist in Coinbase"""
+        try:
+            logger.info("🧹 Cleaning up position_history.json...")
+            
+            # Load current position history
+            position_history = self.load_position_history()
+            if position_history is None or len(position_history) == 0:
+                logger.info("📄 No position history to clean up")
+                return
+            
+            # Detect actual positions from Coinbase
+            actual_positions = self.detect_existing_positions()
+            actual_symbols = set(actual_positions.keys())
+            
+            # Find positions in history that no longer exist in Coinbase
+            history_symbols = set(position_history.keys())
+            orphaned_symbols = history_symbols - actual_symbols
+            
+            if not orphaned_symbols:
+                logger.info("✅ Position history is already clean - all entries have corresponding Coinbase positions")
+                return
+            
+            # Remove orphaned entries
+            original_count = len(position_history)
+            for symbol in orphaned_symbols:
+                removed_entry = position_history.pop(symbol, None)
+                if removed_entry:
+                    logger.info(f"🗑️ Removed {symbol} from position history (no longer held in Coinbase)")
+            
+            # Save cleaned position history
+            self.save_position_history(position_history)
+            
+            new_count = len(position_history)
+            logger.info(f"✅ Cleanup complete: Removed {original_count - new_count} orphaned entries")
+            logger.info(f"📊 Position history now contains {new_count} entries")
+            
+        except Exception as e:
+            logger.error(f"Error cleaning up position history: {e}")
+    
     def record_buy_order(self, symbol: str, amount: float, price: float):
         """Record a buy order in position history"""
         position_history = self.load_position_history()
@@ -964,6 +1004,9 @@ class CoinbaseSmartAllocationBot:
     async def run_smart_allocation_cycle(self):
         """Run one complete smart allocation cycle with LLM-confirmed buy and sell logic and full LLM request/response logging"""
         logger.info("🔄 Starting smart allocation cycle...")
+        
+        # Clean up position history (remove entries for positions no longer held in Coinbase)
+        self.cleanup_position_history()
         
         # Detect existing positions from Coinbase account
         existing_positions = self.detect_existing_positions()
