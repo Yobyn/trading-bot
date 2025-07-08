@@ -76,25 +76,36 @@ class EnhancedMultiAssetBot:
     async def analyze_asset(self, asset: Dict[str, Any], existing_positions: Optional[Dict[str, Any]] = None, phase: str = "MANAGEMENT") -> Optional[Dict[str, Any]]:
         """Analyze a single asset and return trading decision"""
         try:
-            # Get market data
-            market_data = await self.data_fetcher.get_market_data(asset['symbol'])
-            if not market_data:
-                return None
-            
-            # Override portfolio value with actual Coinbase balance (DataFetcher defaults to 10000)
+            # Get comprehensive market data from coinbase bot (includes yearly/weekly averages)
             try:
-                actual_portfolio_value = self.coinbase_bot.trading_engine.get_account_balance()
-                if actual_portfolio_value > 0:
-                    market_data['portfolio_value'] = actual_portfolio_value
-                    logger.debug(f"💰 {asset['symbol']}: Using actual portfolio value €{actual_portfolio_value:.2f}")
-                else:
-                    # Fallback to estimated value based on existing positions
-                    total_position_value = sum(pos['eur_value'] for pos in existing_positions.values()) if existing_positions else 100
-                    estimated_portfolio = max(total_position_value * 1.5, 100)  # Assume positions are ~66% of portfolio
-                    market_data['portfolio_value'] = estimated_portfolio
-                    logger.debug(f"📊 {asset['symbol']}: Using estimated portfolio value €{estimated_portfolio:.2f}")
+                market_data = self.coinbase_bot.data_fetcher.get_market_data(asset['symbol'])
+                if not market_data:
+                    # Fallback to basic data fetcher
+                    market_data = await self.data_fetcher.get_market_data(asset['symbol'])
+                if not market_data:
+                    return None
             except Exception as e:
-                logger.warning(f"Could not get portfolio value for {asset['symbol']}: {e}. Using default.")
+                logger.warning(f"Could not get comprehensive market data for {asset['symbol']}: {e}")
+                # Fallback to basic data fetcher
+                market_data = await self.data_fetcher.get_market_data(asset['symbol'])
+                if not market_data:
+                    return None
+            
+            # Override portfolio value with actual Coinbase balance if the data is from basic DataFetcher
+            if market_data.get('portfolio_value') == 10000.0:  # Basic DataFetcher default
+                try:
+                    actual_portfolio_value = self.coinbase_bot.trading_engine.get_account_balance()
+                    if actual_portfolio_value > 0:
+                        market_data['portfolio_value'] = actual_portfolio_value
+                        logger.debug(f"💰 {asset['symbol']}: Using actual portfolio value €{actual_portfolio_value:.2f}")
+                    else:
+                        # Fallback to estimated value based on existing positions
+                        total_position_value = sum(pos['eur_value'] for pos in existing_positions.values()) if existing_positions else 100
+                        estimated_portfolio = max(total_position_value * 1.5, 100)  # Assume positions are ~66% of portfolio
+                        market_data['portfolio_value'] = estimated_portfolio
+                        logger.debug(f"📊 {asset['symbol']}: Using estimated portfolio value €{estimated_portfolio:.2f}")
+                except Exception as e:
+                    logger.warning(f"Could not get portfolio value for {asset['symbol']}: {e}. Using default.")
             
             # Use provided existing positions to avoid multiple API calls
             if existing_positions is None:
