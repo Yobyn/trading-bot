@@ -230,6 +230,165 @@ class EnhancedMultiAssetBot:
             logger.error(f"Error analyzing {asset['symbol']}: {e}")
             return None
     
+    async def analyze_investment_opportunity(self, available_cash: float, existing_positions: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """INVESTMENT PHASE: Ask LLM to pick the SINGLE best crypto from all options"""
+        try:
+            logger.info(f"💡 Gathering market data for all {len(self.assets)} cryptos for LLM comparison...")
+            
+            # Gather market data for ALL cryptos (without individual LLM calls)
+            all_crypto_data = []
+            for asset in self.assets:
+                try:
+                    # Skip if we already have a position in this crypto
+                    if asset['symbol'] in existing_positions:
+                        logger.debug(f"⏭️ Skipping {asset['symbol']} - already have position")
+                        continue
+                    
+                    # Get comprehensive market data
+                    market_data = self.coinbase_bot.data_fetcher.get_market_data(asset['symbol'])
+                    if not market_data:
+                        continue
+                        
+                    # Add to comparison list
+                    crypto_summary = {
+                        'symbol': asset['symbol'],
+                        'name': asset['name'],
+                        'current_price': market_data['current_price'],
+                        'yearly_avg': market_data.get('yearly_average', 'Unknown'),
+                        'weekly_avg': market_data.get('weekly_average', 'Unknown'),
+                        'rsi': market_data.get('rsi', 'Unknown'),
+                        'macd': market_data.get('macd', 'Unknown'),
+                        'volume_24h': market_data.get('volume_24h', 'Unknown'),
+                    }
+                    all_crypto_data.append(crypto_summary)
+                    
+                except Exception as e:
+                    logger.warning(f"Could not get data for {asset['symbol']}: {e}")
+                    continue
+            
+            if not all_crypto_data:
+                logger.warning("No crypto data available for investment analysis")
+                return None
+            
+            logger.info(f"📊 Gathered data for {len(all_crypto_data)} cryptocurrencies")
+            
+            # Create consolidated prompt for LLM to pick the BEST crypto
+            investment_prompt = f"""I have €{available_cash:.2f} available cash to invest in ONE cryptocurrency.
+            
+Please analyze all the cryptocurrencies below and recommend the SINGLE BEST one to invest in.
+
+Available cryptocurrencies:
+"""
+            
+            for crypto in all_crypto_data:
+                investment_prompt += f"""
+{crypto['name']} ({crypto['symbol']}):
+- Current Price: €{crypto['current_price']:.6f}
+- Yearly Average: {crypto['yearly_avg']}
+- Weekly Average: {crypto['weekly_avg']}  
+- RSI: {crypto['rsi']}
+- MACD: {crypto['macd']}
+- Volume 24h: {crypto['volume_24h']}
+"""
+            
+            investment_prompt += f"""
+
+CONTEXT: I just freed up €{available_cash:.2f} by selling other positions. I want to invest ALL of this money into the ONE crypto that has the best potential for growth.
+
+Please respond with ONLY the symbol (e.g., "BTC/EUR") of your top recommendation and a brief reason why it's the best choice."""
+
+            # Ask LLM to pick the best crypto
+            logger.info(f"🤖 Asking LLM to pick the best crypto from {len(all_crypto_data)} options...")
+            
+            if not self.llm_client:
+                logger.error("LLM client not initialized for investment analysis")
+                return None
+            
+            try:
+                llm_response = await asyncio.wait_for(
+                    self.llm_client.generate_response(investment_prompt),
+                    timeout=60.0  # Longer timeout for complex decision
+                )
+                
+                # Parse LLM response to extract the chosen symbol
+                chosen_symbol = self.parse_investment_decision(llm_response, all_crypto_data)
+                
+                if not chosen_symbol:
+                    logger.error("Could not parse LLM investment recommendation")
+                    return None
+                
+                # Find the chosen asset details
+                chosen_asset = None
+                for asset in self.assets:
+                    if asset['symbol'] == chosen_symbol:
+                        chosen_asset = asset
+                        break
+                
+                if not chosen_asset:
+                    logger.error(f"Could not find asset details for chosen symbol: {chosen_symbol}")
+                    return None
+                
+                logger.info(f"🎯 LLM selected: {chosen_asset['name']} ({chosen_symbol})")
+                logger.info(f"💰 Will invest ALL €{available_cash:.2f} into {chosen_asset['name']}")
+                
+                # Create investment result
+                market_data = self.coinbase_bot.data_fetcher.get_market_data(chosen_symbol)
+                if not market_data:
+                    logger.error(f"Could not get market data for chosen symbol: {chosen_symbol}")
+                    return None
+                
+                investment_result = {
+                    'asset': chosen_asset,
+                    'market_data': market_data,
+                    'decision': {
+                        'action': 'BUY',
+                        'confidence': 90,
+                        'reason': f'LLM selected as best investment from {len(all_crypto_data)} options'
+                    },
+                    'current_position': None,
+                    'position_calculation': {
+                        'target_allocation': 1.0,  # Invest all available cash
+                        'actual_position_value': available_cash,
+                        'quantity': available_cash / market_data['current_price'],
+                    },
+                    'investment_amount': available_cash,
+                    'timestamp': datetime.now().isoformat()
+                }
+                
+                return investment_result
+                
+            except asyncio.TimeoutError:
+                logger.error("LLM investment decision timed out")
+                return None
+                
+        except Exception as e:
+            logger.error(f"Error in investment opportunity analysis: {e}")
+            return None
+    
+    def parse_investment_decision(self, llm_response: str, crypto_data: List[Dict]) -> Optional[str]:
+        """Parse LLM response to extract the chosen cryptocurrency symbol"""
+        try:
+            # Extract all symbols that appear in the response
+            available_symbols = [crypto['symbol'] for crypto in crypto_data]
+            
+            # Look for exact symbol matches in the response
+            for symbol in available_symbols:
+                if symbol in llm_response.upper():
+                    return symbol
+            
+            # Fallback: look for coin names
+            for crypto in crypto_data:
+                coin_name = crypto['name'].upper()
+                if coin_name in llm_response.upper():
+                    return crypto['symbol']
+            
+            logger.warning(f"Could not parse investment decision from: {llm_response}")
+            return None
+            
+        except Exception as e:
+            logger.error(f"Error parsing investment decision: {e}")
+            return None
+    
     async def analyze_all_assets(self) -> List[Dict[str, Any]]:
         """Analyze assets based on available cash - Investment Phase vs Management Phase"""
         results = []
@@ -247,11 +406,15 @@ class EnhancedMultiAssetBot:
         
         # Determine strategy phase
         if free_cash > 10 and len(existing_positions) > 0:
-            # INVESTMENT PHASE: Analyze all 41 cryptos to find best investment opportunity
-            assets_to_analyze = self.assets
-            phase = "INVESTMENT"
+            # INVESTMENT PHASE: Ask LLM to pick the SINGLE best crypto from all options
             logger.info(f"💰 INVESTMENT PHASE: €{free_cash:.2f} available cash > €10")
-            logger.info(f"🔍 Analyzing ALL {len(assets_to_analyze)} cryptos to find best investment opportunity...")
+            logger.info(f"🔍 Asking LLM to pick the SINGLE BEST crypto from all {len(self.assets)} options...")
+            
+            # Use special investment analysis that picks ONE crypto
+            investment_result = await self.analyze_investment_opportunity(free_cash, existing_positions)
+            if investment_result:
+                results.append(investment_result)
+            return results
         else:
             # MANAGEMENT PHASE: Only analyze current holdings for potential sales
             if existing_positions:
@@ -316,21 +479,34 @@ class EnhancedMultiAssetBot:
                 
                 # Apply strategy constraints
                 if decision['action'] == 'BUY':
-                    # Check if we have enough capital
-                    if position_calc['actual_position_value'] > 0:
-                        # BUY = invest in new position (use coinbase trading engine for proper paper trading)
-                        eur_amount = position_calc['actual_position_value']
+                    # Check if this is an investment phase result (has investment_amount)
+                    if 'investment_amount' in result:
+                        # INVESTMENT PHASE: Invest ALL available cash into chosen crypto
+                        eur_amount = result['investment_amount']
                         symbol = asset['symbol']
-                        logger.info(f"💸 Investing in {asset['name']}: €{eur_amount:.2f}")
+                        logger.info(f"🎯 INVESTMENT PHASE: Investing ALL €{eur_amount:.2f} into {asset['name']}")
                         
                         # Use coinbase trading engine which respects paper trading config
                         success = self.coinbase_bot.trading_engine.place_order(symbol, 'buy', eur_amount, None)
                         if success:
-                            logger.info(f"✅ Successfully invested in {asset['name']}")
+                            logger.info(f"✅ Successfully invested ALL cash into {asset['name']}")
                         else:
                             logger.error(f"❌ Failed to invest in {asset['name']}")
                     else:
-                        logger.warning(f"Insufficient capital for {asset['name']}")
+                        # REGULAR BUY: Check if we have enough capital for position sizing
+                        if position_calc['actual_position_value'] > 0:
+                            eur_amount = position_calc['actual_position_value']
+                            symbol = asset['symbol']
+                            logger.info(f"💸 Investing in {asset['name']}: €{eur_amount:.2f}")
+                            
+                            # Use coinbase trading engine which respects paper trading config
+                            success = self.coinbase_bot.trading_engine.place_order(symbol, 'buy', eur_amount, None)
+                            if success:
+                                logger.info(f"✅ Successfully invested in {asset['name']}")
+                            else:
+                                logger.error(f"❌ Failed to invest in {asset['name']}")
+                        else:
+                            logger.warning(f"Insufficient capital for {asset['name']}")
                 
                 elif decision['action'] == 'SELL':
                     # Check if we have an existing position to close using the correct position data
