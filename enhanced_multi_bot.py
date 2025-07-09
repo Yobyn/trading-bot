@@ -420,7 +420,12 @@ class EnhancedMultiAssetBot:
         self.is_running = False
         
         if self.llm_client:
-            await self.llm_client.__aexit__(None, None, None)
+            try:
+                await self.llm_client.__aexit__(None, None, None)
+            except (asyncio.CancelledError, Exception) as e:
+                # Ignore cleanup errors during shutdown
+                logger.debug(f"LLM client cleanup error (expected during shutdown): {e}")
+                pass
         
         logger.info("Enhanced multi-asset trading bot stopped")
     

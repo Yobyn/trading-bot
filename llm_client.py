@@ -18,7 +18,12 @@ class LLMClient:
         
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         if self.session:
-            await self.session.close()
+            try:
+                await self.session.close()
+            except (asyncio.CancelledError, Exception) as e:
+                # Ignore cleanup errors during shutdown
+                logger.debug(f"Session cleanup error (expected during shutdown): {e}")
+                pass
     
     async def generate_response(self, prompt: str, system_prompt: Optional[str] = None) -> str:
         """Generate a response from Ollama"""
