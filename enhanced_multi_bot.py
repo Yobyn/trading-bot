@@ -273,11 +273,9 @@ class EnhancedMultiAssetBot:
             logger.info(f"📊 Gathered data for {len(all_crypto_data)} cryptocurrencies")
             
             # Create consolidated prompt for LLM to pick the BEST crypto
-            investment_prompt = f"""I have €{available_cash:.2f} available cash to invest in ONE cryptocurrency.
-            
-Please analyze all the cryptocurrencies below and recommend the SINGLE BEST one to invest in.
+            investment_prompt = f"""You are a technical analysis bot. Based on the market data below, identify which cryptocurrency shows the strongest technical signals for potential upward movement.
 
-Available cryptocurrencies:
+Technical Analysis Data for {len(all_crypto_data)} cryptocurrencies:
 """
             
             for crypto in all_crypto_data:
@@ -293,9 +291,14 @@ Available cryptocurrencies:
             
             investment_prompt += f"""
 
-CONTEXT: I just freed up €{available_cash:.2f} by selling other positions. I want to invest ALL of this money into the ONE crypto that has the best potential for growth.
+TASK: Analyze the technical indicators (RSI, MACD, price vs averages) and identify which cryptocurrency has the strongest technical setup for potential growth.
 
-Please respond with ONLY the symbol (e.g., "BTC/EUR") of your top recommendation and a brief reason why it's the best choice."""
+Focus on:
+- RSI levels (oversold = opportunity)
+- MACD signals (positive momentum)
+- Current price vs yearly/weekly averages (undervalued = opportunity)
+
+Respond with ONLY the symbol (e.g., "BTC/EUR") of the cryptocurrency with the best technical setup."""
 
             # Ask LLM to pick the best crypto
             logger.info(f"🤖 Asking LLM to pick the best crypto from {len(all_crypto_data)} options...")
@@ -396,22 +399,40 @@ Please respond with ONLY the symbol (e.g., "BTC/EUR") of your top recommendation
         # Detect existing positions and available cash
         existing_positions = self.coinbase_bot.detect_existing_positions()
         try:
-            available_cash = self.coinbase_bot.trading_engine.get_account_balance()
-            # Subtract current position values to get free cash
+            # Use direct EUR balance method instead of calculation by subtraction
+            # This gets the actual EUR cash balance from Coinbase, excluding crypto holdings
+            free_cash = self.coinbase_bot.get_eur_balance()
+            
+            # Also get total portfolio value for logging
+            total_portfolio_value = self.coinbase_bot.trading_engine.get_account_balance()
             total_position_value = sum(pos['eur_value'] for pos in existing_positions.values())
-            free_cash = available_cash - total_position_value
+            
+            # Log detailed breakdown for transparency
+            logger.debug(f"💰 Cash Breakdown: Total Portfolio €{total_portfolio_value:.2f} | Position Values €{total_position_value:.2f} | Direct EUR Cash €{free_cash:.2f}")
+            
         except Exception as e:
             logger.warning(f"Could not determine available cash: {e}")
             free_cash = 0
         
+        # Apply safety buffer to available cash
+        # Keep 2% buffer, but cap at €5 maximum
+        buffer_percentage = 0.02  # 2%
+        max_buffer = 5.0  # €5 maximum
+        
+        calculated_buffer = free_cash * buffer_percentage
+        safety_buffer = min(calculated_buffer, max_buffer)
+        investable_cash = max(0, free_cash - safety_buffer)
+        
+        logger.debug(f"💰 Buffer Calculation: Free €{free_cash:.2f} | Buffer {buffer_percentage*100}% = €{calculated_buffer:.2f} | Capped at €{safety_buffer:.2f} | Investable €{investable_cash:.2f}")
+
         # Determine strategy phase
-        if free_cash > 10 and len(existing_positions) > 0:
+        if investable_cash > 10 and len(existing_positions) > 0:
             # INVESTMENT PHASE: Ask LLM to pick the SINGLE best crypto from all options
-            logger.info(f"💰 INVESTMENT PHASE: €{free_cash:.2f} available cash > €10")
+            logger.info(f"💰 INVESTMENT PHASE: €{investable_cash:.2f} investable cash (€{free_cash:.2f} - €{safety_buffer:.2f} buffer) > €10")
             logger.info(f"🔍 Asking LLM to pick the SINGLE BEST crypto from all {len(self.assets)} options...")
             
             # Use special investment analysis that picks ONE crypto
-            investment_result = await self.analyze_investment_opportunity(free_cash, existing_positions)
+            investment_result = await self.analyze_investment_opportunity(investable_cash, existing_positions)
             if investment_result:
                 results.append(investment_result)
             return results
@@ -422,7 +443,7 @@ Please respond with ONLY the symbol (e.g., "BTC/EUR") of your top recommendation
                 held_symbols = set(existing_positions.keys())
                 assets_to_analyze = [asset for asset in self.assets if asset['symbol'] in held_symbols]
                 phase = "MANAGEMENT"
-                logger.info(f"📊 MANAGEMENT PHASE: €{free_cash:.2f} available cash (≤ €10 or no positions)")
+                logger.info(f"📊 MANAGEMENT PHASE: €{investable_cash:.2f} investable cash (≤ €10 or no positions)")
                 logger.info(f"🎯 Analyzing ONLY {len(assets_to_analyze)} current holdings for potential sales...")
             else:
                 # No positions and no cash - analyze all for potential investment
@@ -430,7 +451,7 @@ Please respond with ONLY the symbol (e.g., "BTC/EUR") of your top recommendation
                 phase = "INVESTMENT"
                 logger.info(f"🏁 STARTUP: No positions found, analyzing all {len(assets_to_analyze)} cryptos...")
         
-        logger.info(f"📊 Found {len(existing_positions)} existing positions | Available Cash: €{free_cash:.2f}")
+        logger.info(f"📊 Found {len(existing_positions)} existing positions | Free Cash: €{free_cash:.2f} | Investable: €{investable_cash:.2f} (after €{safety_buffer:.2f} buffer)")
         
         for asset in assets_to_analyze:
             try:
