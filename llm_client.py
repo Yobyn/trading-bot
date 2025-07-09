@@ -73,6 +73,9 @@ class LLMClient:
         except asyncio.TimeoutError:
             logger.error("Ollama request timed out after 60 seconds")
             raise Exception("Ollama request timed out")
+        except asyncio.CancelledError:
+            logger.debug("Ollama request cancelled (shutdown in progress)")
+            raise  # Re-raise CancelledError to be handled by caller
         except Exception as e:
             logger.error(f"Error connecting to Ollama: {e}")
             raise Exception(f"Could not connect to Ollama: {e}")

@@ -158,6 +158,13 @@ class EnhancedMultiAssetBot:
                     'confidence': 50,
                     'reason': 'LLM timeout - defaulting to HOLD for safety'
                 }
+            except asyncio.CancelledError:
+                logger.debug(f"LLM request cancelled for {asset['symbol']} (shutdown in progress)")
+                decision = {
+                    'action': 'HOLD',
+                    'confidence': 50,
+                    'reason': 'Operation cancelled - defaulting to HOLD for safety'
+                }
             except Exception as e:
                 logger.error(f"LLM error for {asset['symbol']}: {e}, defaulting to HOLD")
                 decision = {
@@ -373,6 +380,10 @@ class EnhancedMultiAssetBot:
             # 4. Save analysis results
             self.save_analysis_results(analysis_results)
             
+        except asyncio.CancelledError:
+            logger.debug("Trading cycle cancelled (shutdown in progress)")
+            # Don't log as error - this is expected during shutdown
+            pass
         except Exception as e:
             logger.error(f"Error in enhanced trading cycle: {e}")
     
@@ -410,6 +421,8 @@ class EnhancedMultiAssetBot:
                 
         except KeyboardInterrupt:
             logger.info("Received interrupt signal, stopping bot...")
+        except asyncio.CancelledError:
+            logger.info("Bot operation cancelled, stopping...")
         except Exception as e:
             logger.error(f"Unexpected error: {e}")
         finally:
