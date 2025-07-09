@@ -25,7 +25,6 @@ class EnhancedMultiAssetBot:
     def __init__(self, portfolio_name: str = "coinbase_majors", strategy_name: str = "moderate"):
         self.llm_client = None
         self.data_fetcher = DataFetcher()
-        self.trading_engine = TradingEngine()
         self.coinbase_bot = CoinbaseSmartAllocationBot(portfolio_name, strategy_name)
         self.is_running = False
         
@@ -319,9 +318,17 @@ class EnhancedMultiAssetBot:
                 if decision['action'] == 'BUY':
                     # Check if we have enough capital
                     if position_calc['actual_position_value'] > 0:
-                        # Execute trade with calculated position size
-                        trade_result = await self.trading_engine.execute_trade(decision, market_data)
-                        logger.info(f"Trade Result for {asset['name']}: {trade_result['status']}")
+                        # BUY = invest in new position (use coinbase trading engine for proper paper trading)
+                        eur_amount = position_calc['actual_position_value']
+                        symbol = asset['symbol']
+                        logger.info(f"💸 Investing in {asset['name']}: €{eur_amount:.2f}")
+                        
+                        # Use coinbase trading engine which respects paper trading config
+                        success = self.coinbase_bot.trading_engine.place_order(symbol, 'buy', eur_amount, None)
+                        if success:
+                            logger.info(f"✅ Successfully invested in {asset['name']}")
+                        else:
+                            logger.error(f"❌ Failed to invest in {asset['name']}")
                     else:
                         logger.warning(f"Insufficient capital for {asset['name']}")
                 
@@ -329,15 +336,20 @@ class EnhancedMultiAssetBot:
                     # Check if we have an existing position to close
                     current_position = result.get('current_position')
                     if current_position and current_position.get('has_position', False):
-                        # Convert SELL to CLOSE for existing positions
-                        decision_copy = decision.copy()
-                        decision_copy['action'] = 'CLOSE'
-                        trade_result = await self.trading_engine.execute_trade(decision_copy, market_data)
-                        logger.info(f"Closing position for {asset['name']}: {trade_result['status']}")
+                        # SELL = liquidate existing position (use coinbase trading engine for proper paper trading)
+                        amount = current_position['amount']
+                        symbol = asset['symbol']
+                        logger.info(f"💰 Liquidating {asset['name']}: {amount:.6f} tokens = €{current_position['eur_value']:.2f}")
+                        
+                        # Use coinbase trading engine which respects paper trading config
+                        success = self.coinbase_bot.trading_engine.place_order(symbol, 'sell', amount, None)
+                        if success:
+                            logger.info(f"✅ Successfully liquidated {asset['name']}")
+                        else:
+                            logger.error(f"❌ Failed to liquidate {asset['name']}")
                     else:
-                        # No existing position - execute as new short position
-                        trade_result = await self.trading_engine.execute_trade(decision, market_data)
-                        logger.info(f"Opening short position for {asset['name']}: {trade_result['status']}")
+                        # This shouldn't happen in MANAGEMENT PHASE - log warning
+                        logger.warning(f"⚠️ SELL decision for {asset['name']} but no existing position found. Skipping.")
                 
                 else:  # HOLD
                     logger.info(f"Holding {asset['name']} - no action taken")
@@ -374,8 +386,7 @@ class EnhancedMultiAssetBot:
                 logger.info(f"📊 Portfolio: €{portfolio_value:.2f} | Positions Value: €{total_position_value:.2f} | P&L: €{total_pnl:.2f} | Assets: {len(existing_positions)}")
             except Exception as e:
                 logger.warning(f"Could not get portfolio summary: {e}")
-                portfolio = self.trading_engine.get_portfolio_summary()
-                logger.info(f"📊 Portfolio (Paper): ${portfolio['portfolio_value']:.2f} | P&L: ${portfolio['total_pnl']:.2f} | Positions: {portfolio['position_count']}")
+                logger.info(f"📊 Portfolio: Unable to retrieve portfolio data")
             
             # 4. Save analysis results
             self.save_analysis_results(analysis_results)
@@ -445,7 +456,22 @@ class EnhancedMultiAssetBot:
     
     def get_status(self) -> Dict[str, Any]:
         """Get current bot status"""
-        portfolio = self.trading_engine.get_portfolio_summary()
+        try:
+            # Try to get coinbase portfolio data
+            portfolio_value = self.coinbase_bot.trading_engine.get_account_balance()
+            existing_positions = self.coinbase_bot.detect_existing_positions()
+            portfolio = {
+                'portfolio_value': portfolio_value,
+                'position_count': len(existing_positions),
+                'total_pnl': sum(pos.get('profit_loss_eur', 0) for pos in existing_positions.values())
+            }
+        except:
+            # Fallback portfolio data
+            portfolio = {
+                'portfolio_value': 0,
+                'position_count': 0,
+                'total_pnl': 0
+            }
         
         return {
             'is_running': self.is_running,
