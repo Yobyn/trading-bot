@@ -417,6 +417,7 @@ class EnhancedMultiAssetBot:
                 await self.run_trading_cycle()
                 
                 # Wait for next cycle
+                logger.info(f"⏰ Waiting {interval_minutes} minutes until next trading cycle...")
                 await asyncio.sleep(interval_minutes * 60)
                 
         except KeyboardInterrupt:
