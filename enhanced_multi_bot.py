@@ -333,13 +333,15 @@ class EnhancedMultiAssetBot:
                         logger.warning(f"Insufficient capital for {asset['name']}")
                 
                 elif decision['action'] == 'SELL':
-                    # Check if we have an existing position to close
-                    current_position = result.get('current_position')
-                    if current_position and current_position.get('has_position', False):
+                    # Check if we have an existing position to close using the correct position data
+                    position_data = result['market_data']['current_position']
+                    raw_position = result.get('current_position')
+                    
+                    if position_data and position_data.get('has_position', False) and raw_position:
                         # SELL = liquidate existing position (use coinbase trading engine for proper paper trading)
-                        amount = current_position['amount']
+                        amount = raw_position['amount']
                         symbol = asset['symbol']
-                        logger.info(f"💰 Liquidating {asset['name']}: {amount:.6f} tokens = €{current_position['eur_value']:.2f}")
+                        logger.info(f"💰 Liquidating {asset['name']}: {amount:.6f} tokens = €{raw_position['eur_value']:.2f}")
                         
                         # Use coinbase trading engine which respects paper trading config
                         success = self.coinbase_bot.trading_engine.place_order(symbol, 'sell', amount, None)
