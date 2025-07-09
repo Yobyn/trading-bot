@@ -306,9 +306,8 @@ Respond with the asset symbol and your reasoning."""
             # Management phase, has position - focus on selling to free cash
             available_actions = """Available actions:
         - HOLD: Keep the current position
-        - SELL: Reduce position size to free up some cash  
-        - CLOSE: Close entire position to free up maximum cash"""
-            context_instruction = "MANAGEMENT PHASE: You have limited cash and need to manage existing positions. Focus on whether to SELL/CLOSE this position to free up cash for new opportunities."
+        - SELL: Liquidate this position to free up cash"""
+            context_instruction = "MANAGEMENT PHASE: You have limited cash and need to manage existing positions. Focus on whether to SELL (liquidate) this position to free up cash for new opportunities."
             
         else:
             # Fallback - shouldn't happen in normal operation
