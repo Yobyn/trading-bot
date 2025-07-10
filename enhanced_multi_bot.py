@@ -415,9 +415,9 @@ Respond with ONLY the symbol (e.g., "BTC/EUR") of the cryptocurrency with the be
             free_cash = 0
         
         # Apply safety buffer to available cash
-        # Keep 2% buffer, but cap at €5 maximum
-        buffer_percentage = 0.02  # 2%
-        max_buffer = 5.0  # €5 maximum
+        # Keep 5% buffer, but cap at €10 maximum (more conservative for fees, slippage, and rounding)
+        buffer_percentage = 0.05  # 5%
+        max_buffer = 10.0  # €10 maximum
         
         calculated_buffer = free_cash * buffer_percentage
         safety_buffer = min(calculated_buffer, max_buffer)

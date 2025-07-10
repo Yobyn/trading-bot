@@ -440,17 +440,32 @@ class CoinbaseTradingEngine:
         """Format amount and price according to Coinbase precision requirements"""
         rules = self.precision_rules.get(product_id, self.precision_rules['default'])
         
+        logger.info(f"🔧 PRECISION FORMATTING for {product_id}:")
+        logger.info(f"  Precision Rules: {rules}")
+        logger.info(f"  Original Amount: {amount}")
+        logger.info(f"  Original Price: {price}")
+        
         # Format amount (base_size) with proper decimal places
         formatted_amount = round(amount, rules['size_decimals'])
         formatted_amount_str = f"{formatted_amount:.{rules['size_decimals']}f}".rstrip('0').rstrip('.')
+        
+        logger.info(f"  Amount Formatting:")
+        logger.info(f"    Rounded to {rules['size_decimals']} decimals: {formatted_amount}")
+        logger.info(f"    Formatted string: '{formatted_amount_str}'")
         
         # Format price with proper decimal places if provided
         formatted_price_str = None
         if price is not None:
             formatted_price = round(price, rules['price_decimals'])
             formatted_price_str = f"{formatted_price:.{rules['price_decimals']}f}".rstrip('0').rstrip('.')
+            
+            logger.info(f"  Price Formatting:")
+            logger.info(f"    Rounded to {rules['price_decimals']} decimals: {formatted_price}")
+            logger.info(f"    Formatted string: '{formatted_price_str}'")
+        else:
+            logger.info(f"  Price: None (market order)")
         
-        logger.info(f"Formatted order params for {product_id}: amount={formatted_amount_str}, price={formatted_price_str}")
+        logger.info(f"  Final Result: amount='{formatted_amount_str}', price='{formatted_price_str}'")
         return formatted_amount_str, formatted_price_str
     
     def place_order(self, symbol: str, side: str, amount: float, price: Optional[float] = None) -> bool:
@@ -495,46 +510,99 @@ class CoinbaseTradingEngine:
             # Format order parameters with proper precision
             formatted_amount, formatted_price = self.format_order_params(product_id, amount, price)
             
+            # Log detailed request information
+            logger.info(f"📤 COINBASE API REQUEST:")
+            logger.info(f"  Original Input: symbol={symbol}, side={side}, amount={amount}, price={price}")
+            logger.info(f"  Converted: product_id={product_id}, formatted_amount={formatted_amount}, formatted_price={formatted_price}")
+            logger.info(f"  Client Order ID: {client_order_id}")
+            
             # Place order using Coinbase Advanced API
             if price:
                 # Limit order
+                order_config = {
+                    'limit_limit_gtc': {
+                        'base_size': formatted_amount,
+                        'limit_price': formatted_price
+                    }
+                }
+                logger.info(f"  Order Type: LIMIT")
+                logger.info(f"  Order Configuration: {order_config}")
+                
                 order = self.client.create_order(
                     product_id=product_id,
                     side=side.upper(),
                     client_order_id=client_order_id,
-                    order_configuration={
-                        'limit_limit_gtc': {
-                            'base_size': formatted_amount,
-                            'limit_price': formatted_price
-                        }
-                    }
+                    order_configuration=order_config
                 )
             else:
                 # Market order
                 if side.upper() == 'BUY':
                     # For market BUY orders, use quote_size (EUR amount to spend)
+                    # EUR amounts need to be formatted to exactly 2 decimal places for Coinbase
+                    eur_amount = round(float(formatted_amount), 2)
+                    eur_amount_str = f"{eur_amount:.2f}"
+                    
+                    logger.info(f"  Market BUY EUR Formatting:")
+                    logger.info(f"    Original formatted_amount: '{formatted_amount}'")
+                    logger.info(f"    Rounded EUR amount: {eur_amount}")
+                    logger.info(f"    Final EUR string: '{eur_amount_str}'")
+                    
+                    order_config = {
+                        'market_market_ioc': {
+                            'quote_size': eur_amount_str
+                        }
+                    }
+                    logger.info(f"  Order Type: MARKET BUY")
+                    logger.info(f"  Order Configuration: {order_config}")
+                    
                     order = self.client.create_order(
                         product_id=product_id,
                         side=side.upper(),
                         client_order_id=client_order_id,
-                        order_configuration={
-                            'market_market_ioc': {
-                                'quote_size': formatted_amount
-                            }
-                        }
+                        order_configuration=order_config
                     )
                 else:
                     # For market SELL orders, use base_size (crypto amount to sell)
+                    order_config = {
+                        'market_market_ioc': {
+                            'base_size': formatted_amount
+                        }
+                    }
+                    logger.info(f"  Order Type: MARKET SELL")
+                    logger.info(f"  Order Configuration: {order_config}")
+                    
                     order = self.client.create_order(
                         product_id=product_id,
                         side=side.upper(),
                         client_order_id=client_order_id,
-                        order_configuration={
-                            'market_market_ioc': {
-                                'base_size': formatted_amount
-                            }
-                        }
+                        order_configuration=order_config
                     )
+            
+            # Log detailed response information
+            logger.info(f"📥 COINBASE API RESPONSE:")
+            logger.info(f"  Response Type: {type(order)}")
+            
+            if order:
+                # Convert response to dict for comprehensive logging
+                if hasattr(order, '__dict__'):
+                    response_dict = order.__dict__
+                else:
+                    response_dict = str(order)
+                logger.info(f"  Full Response: {response_dict}")
+                
+                # Log specific response attributes
+                if hasattr(order, 'success'):
+                    logger.info(f"  Success: {order.success}")
+                if hasattr(order, 'success_response'):
+                    logger.info(f"  Success Response: {order.success_response}")
+                if hasattr(order, 'error_response'):
+                    logger.info(f"  Error Response: {order.error_response}")
+                if hasattr(order, 'order_configuration'):
+                    logger.info(f"  Order Configuration: {order.order_configuration}")
+                if hasattr(order, 'order_id'):
+                    logger.info(f"  Order ID: {order.order_id}")
+            else:
+                logger.info(f"  Response is None")
             
             # Handle the response - check if order was successful
             success = False
@@ -716,19 +784,44 @@ class CoinbaseSmartAllocationBot:
         return current_price
     
     def get_sell_price(self, market_data: Dict[str, Any]) -> float:
-        """Get the price to use when selling or valuing positions (BID price)"""
+        """Get the price to use when selling or valuing positions (BID price with enhanced validation)"""
         bid_price = market_data.get('bid', 0)
+        ask_price = market_data.get('ask', 0)
         current_price = market_data.get('current_price', 0)
         weekly_avg = market_data.get('weekly_average', current_price)
+        yearly_avg = market_data.get('yearly_average', current_price)
+        symbol = market_data.get('symbol', 'Unknown')
         
-        # Sanity check: if bid price seems unreasonable compared to current price, use current price
-        if bid_price > 0 and current_price > 0 and weekly_avg > 0:
-            # If bid is less than 50% of weekly average, it's probably wrong
-            if bid_price < (weekly_avg * 0.5):
-                logger.warning(f"Bid price {bid_price} seems too low vs weekly avg {weekly_avg}. Using current price for sell.")
+        # Enhanced BID price validation with multiple checks
+        if bid_price > 0:
+            reasons_to_reject = []
+            
+            # Check 1: BID vs weekly average (relaxed from 50% to 30%)
+            if weekly_avg > 0 and bid_price < (weekly_avg * 0.3):
+                reasons_to_reject.append(f"BID €{bid_price:.6f} < 30% of weekly avg €{weekly_avg:.6f}")
+            
+            # Check 2: BID vs ASK spread (shouldn't be too wide)
+            if ask_price > 0:
+                spread_pct = ((ask_price - bid_price) / bid_price) * 100
+                if spread_pct > 50:  # More than 50% spread is suspicious
+                    reasons_to_reject.append(f"BID-ASK spread {spread_pct:.1f}% too wide (BID €{bid_price:.6f}, ASK €{ask_price:.6f})")
+            
+            # Check 3: BID vs yearly average (very relaxed check)
+            if yearly_avg > 0 and bid_price < (yearly_avg * 0.1):
+                reasons_to_reject.append(f"BID €{bid_price:.6f} < 10% of yearly avg €{yearly_avg:.6f}")
+            
+            # If BID passes all checks, use it
+            if not reasons_to_reject:
+                logger.debug(f"💰 {symbol}: Using BID price €{bid_price:.6f} ✓ (passed all validation checks)")
+                return bid_price
+            else:
+                # Log why BID was rejected
+                logger.warning(f"⚠️ {symbol}: BID price rejected - {'; '.join(reasons_to_reject)}")
+                logger.warning(f"   Fallback: Using mid-price €{current_price:.6f} instead of BID €{bid_price:.6f}")
                 return current_price
-            return bid_price
-        # Fallback to current price if bid not available or unreasonable
+        
+        # Fallback: no BID price available
+        logger.debug(f"💰 {symbol}: No BID price available, using mid-price €{current_price:.6f}")
         return current_price
 
     def get_eur_balance(self) -> float:
@@ -1058,9 +1151,17 @@ class CoinbaseSmartAllocationBot:
                         
                         # Use sell price (bid) for current valuation
                         sell_price = self.get_sell_price(market_data)
+                        buy_price_for_reference = self.get_buy_price(market_data)
+                        
+                        # Enhanced price data for LLM with full transparency
+                        raw_bid = float(market_data.get('bid', 0))
+                        raw_ask = float(market_data.get('ask', 0))
+                        mid_price = (raw_bid + raw_ask) / 2 if raw_bid > 0 and raw_ask > 0 else current_price
+                        spread_pct = ((raw_ask - raw_bid) / mid_price * 100) if raw_bid > 0 and raw_ask > 0 else 0
+                        
                         llm_sell_request = {
                             'symbol': symbol,
-                            'current_price': float(sell_price),  # Use sell price for valuation
+                            'current_price': float(sell_price),  # SELL/VALUATION price (BID or fallback)
                             'buy_price': float(position.get('buy_price', current_price)),
                             'profit_loss_pct': float(position.get('profit_loss_pct', 0)),
                             'profit_loss_eur': float(position.get('profit_loss_eur', 0)),
@@ -1069,8 +1170,17 @@ class CoinbaseSmartAllocationBot:
                             'volume_24h': market_data.get('volume', 0),
                             'yearly_average': float(yearly_avg),  # Provide yearly average
                             'weekly_average': float(weekly_avg),  # Provide weekly average
-                            'bid': float(market_data.get('bid', current_price)),
-                            'ask': float(market_data.get('ask', current_price)),
+                            # ENHANCED PRICE TRANSPARENCY FOR LLM
+                            'latest_bid': float(raw_bid),  # Exact latest BID from Coinbase
+                            'latest_ask': float(raw_ask),  # Exact latest ASK from Coinbase
+                            'mid_price': float(mid_price),  # Mid-point between BID/ASK
+                            'spread_percent': float(spread_pct),  # BID-ASK spread as percentage
+                            'valuation_price': float(sell_price),  # Price used for position valuation
+                            'buy_order_price': float(buy_price_for_reference),  # Price that would be used for buying
+                            'price_explanation': f"Valuation uses BID (€{raw_bid:.6f}) {'✓' if sell_price == raw_bid else '✗ fallback to current'}, Buy would use ASK (€{raw_ask:.6f})",
+                            # LEGACY FIELDS (for backward compatibility)
+                            'bid': float(raw_bid),
+                            'ask': float(raw_ask),
                             # Technical indicators
                             'rsi': float(market_data.get('rsi', 50)),
                             'macd': float(market_data.get('macd', 0)),
