@@ -75,9 +75,9 @@ class CoinbaseDataFetcher:
                 best_ask = 0
                 current_price = 0
             
-            # Get historical candles for yearly average (limited to 300 days due to Coinbase 350 candle limit)
+            # Get historical candles for yearly average (limited to 290 days due to Coinbase 350 candle limit)
             now = datetime.now(timezone.utc)
-            start_dt = now - timedelta(days=300)  # Conservative limit to stay well under 350 candle limit
+            start_dt = now - timedelta(days=290)  # Conservative limit to stay well under 350 candle limit
             start = int(start_dt.timestamp())
             end = int(now.timestamp())
             
@@ -181,10 +181,10 @@ class CoinbaseDataFetcher:
                     
                     # Get historical data for yearly average and technical indicators
                     try:
-                        # Try ~11-month data first (330 days to stay under 350 candle limit)
+                        # Try ~9-month data first (270 days to stay well under 350 candle limit)
                         candles = self.client.get_product_candles(
                             product_id=product_id,
-                            start=int((datetime.now() - timedelta(days=330)).timestamp()),
+                            start=int((datetime.now() - timedelta(days=270)).timestamp()),
                             end=int(datetime.now().timestamp()),
                             granularity='ONE_DAY'
                         )

@@ -54,7 +54,7 @@ ASSET_PORTFOLIOS = {
         # Gaming/NFT Tokens
         {"symbol": "APE/EUR", "name": "ApeCoin", "exchange": "coinbase"},
         {"symbol": "AXS/EUR", "name": "Axie Infinity", "exchange": "coinbase"},
-        {"symbol": "RNDR/EUR", "name": "Render Token", "exchange": "coinbase"},
+    
         
         # Layer 2/Scaling Solutions
         {"symbol": "MATIC/EUR", "name": "Polygon", "exchange": "coinbase"},
