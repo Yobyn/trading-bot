@@ -75,26 +75,60 @@ class CoinbaseDataFetcher:
                 best_ask = 0
                 current_price = 0
             
-            # Get historical candles for yearly average (limited to 290 days due to Coinbase 350 candle limit)
+            # Get historical candles for 3-month average (90 days)
             now = datetime.now(timezone.utc)
-            start_dt = now - timedelta(days=290)  # Conservative limit to stay well under 350 candle limit
+            start_dt = now - timedelta(days=90)  # 3 months of historical data for more recent trends
             start = int(start_dt.timestamp())
             end = int(now.timestamp())
             
             # Try to get daily candles for ~11 months (more efficient than hourly)
             try:
                 candles = self.client.get_candles(product_id=product_id, start=str(start), end=str(end), granularity='ONE_DAY')
-                closes = [float(candle.close) for candle in candles.candles if candle.close is not None]
                 
-                # Validate we have at least 200 days of data (allowing for some missing days and weekends)
-                if len(closes) < 200:
-                    logger.warning(f"{symbol}: Only {len(closes)} days of historical data available (need 200+). Skipping this asset.")
+                # Extract candles with timestamps and sort by timestamp to ensure chronological order
+                candle_data = []
+                if candles and candles.candles:
+                    for candle in candles.candles:
+                        if candle.close is not None:
+                            # Use the correct timestamp attribute for Coinbase candles
+                            timestamp = getattr(candle, 'start', getattr(candle, 'timestamp', 0))
+                            candle_data.append({
+                                'timestamp': int(timestamp),
+                                'close': float(candle.close)
+                            })
+                
+                # Sort by timestamp (oldest first, newest last)
+                candle_data.sort(key=lambda x: x['timestamp'])
+                closes = [candle['close'] for candle in candle_data]
+                
+                # Validate we have at least 60 days of data (allowing for some missing days and weekends)
+                if len(closes) < 60:
+                    logger.warning(f"{symbol}: Only {len(closes)} days of historical data available (need 60+). Skipping this asset.")
                     return None  # Skip assets without sufficient historical data
                 
-                yearly_avg = np.mean(closes) if closes else 0
-                # Calculate weekly average (last 7 days)
-                weekly_avg = np.mean(closes[-7:]) if len(closes) >= 7 else yearly_avg
-                logger.info(f"{symbol}: Using {len(closes)} days of historical data for ~10-month average, weekly avg from last 7 days")
+                three_month_avg = np.mean(closes) if closes else 0
+                
+                # Calculate weekly average (last 7 days) with validation
+                if len(closes) >= 7:
+                    weekly_closes = closes[-7:]
+                    weekly_avg = np.mean(weekly_closes)
+                    
+                    # Debug logging to verify weekly average calculation
+                    if len(candle_data) >= 7:
+                        recent_timestamps = [candle_data[i]['timestamp'] for i in range(-7, 0)]
+                        recent_dates = [datetime.fromtimestamp(ts, tz=timezone.utc).strftime('%Y-%m-%d') for ts in recent_timestamps]
+                        logger.debug(f"{symbol}: Weekly avg €{weekly_avg:.6f} from dates {recent_dates} (prices: {[f'{p:.6f}' for p in weekly_closes]})")
+                        
+                        # Sanity check: verify dates are actually recent (within last 10 days)
+                        most_recent_timestamp = recent_timestamps[-1]
+                        days_ago = (datetime.now(timezone.utc).timestamp() - most_recent_timestamp) / 86400
+                        if days_ago > 10:
+                            logger.warning(f"{symbol}: Weekly average using data from {days_ago:.1f} days ago! Using current price instead.")
+                            weekly_avg = current_price
+                else:
+                    weekly_avg = three_month_avg
+                    
+                logger.info(f"{symbol}: Using {len(closes)} days of historical data for ~3-month average, weekly avg from last 7 days")
                 
             except Exception as candle_error:
                 logger.warning(f"Failed to get daily candles for {symbol}, trying hourly: {candle_error}")
@@ -102,32 +136,63 @@ class CoinbaseDataFetcher:
                 start_dt = now - timedelta(days=30)
                 start = int(start_dt.timestamp())
                 candles = self.client.get_candles(product_id=product_id, start=str(start), end=str(end), granularity='ONE_HOUR')
-                closes = [float(candle.close) for candle in candles.candles if candle.close is not None]
+                
+                # Extract hourly candles with timestamps and sort by timestamp
+                candle_data = []
+                if candles and candles.candles:
+                    for candle in candles.candles:
+                        if candle.close is not None:
+                            timestamp = getattr(candle, 'start', getattr(candle, 'timestamp', 0))
+                            candle_data.append({
+                                'timestamp': int(timestamp),
+                                'close': float(candle.close)
+                            })
+                
+                # Sort by timestamp (oldest first, newest last)
+                candle_data.sort(key=lambda x: x['timestamp'])
+                closes = [candle['close'] for candle in candle_data]
                 
                 if len(closes) < 600:  # Less than ~25 days of hourly data
                     logger.warning(f"{symbol}: Insufficient historical data even with hourly fallback. Skipping this asset.")
                     return None
                 
-                yearly_avg = np.mean(closes) if closes else 0
-                # Calculate weekly average (last 7 days * 24 hours = 168 hours)
-                weekly_avg = np.mean(closes[-168:]) if len(closes) >= 168 else yearly_avg
-                logger.warning(f"{symbol}: Using fallback 30-day average instead of ~11-month average (insufficient data)")
+                three_month_avg = np.mean(closes) if closes else 0
+                
+                # Calculate weekly average (last 7 days * 24 hours = 168 hours) with validation
+                if len(closes) >= 168:
+                    weekly_closes = closes[-168:]
+                    weekly_avg = np.mean(weekly_closes)
+                    
+                    # Debug logging for hourly data
+                    if len(candle_data) >= 168:
+                        most_recent_timestamp = candle_data[-1]['timestamp']
+                        days_ago = (datetime.now(timezone.utc).timestamp() - most_recent_timestamp) / 86400
+                        logger.debug(f"{symbol}: Hourly weekly avg €{weekly_avg:.6f} from {len(weekly_closes)} hours (most recent: {days_ago:.1f} days ago)")
+                        
+                        # Sanity check for hourly data
+                        if days_ago > 10:
+                            logger.warning(f"{symbol}: Hourly weekly average using data from {days_ago:.1f} days ago! Using current price instead.")
+                            weekly_avg = current_price
+                else:
+                    weekly_avg = three_month_avg
+                    
+                logger.warning(f"{symbol}: Using fallback 30-day average instead of ~3-month average (insufficient data)")
             
-            # If current price seems wrong (too low compared to yearly average), use most recent candle close
-            if yearly_avg > 0 and current_price > 0 and current_price < (yearly_avg * 0.1):  # Current price is less than 10% of yearly average
-                logger.warning(f"Current price {current_price} seems too low vs yearly avg {yearly_avg}. Using latest candle close.")
+            # If current price seems wrong (too low compared to 3-month average), use most recent candle close
+            if three_month_avg > 0 and current_price > 0 and current_price < (three_month_avg * 0.1):  # Current price is less than 10% of 3-month average
+                logger.warning(f"Current price {current_price} seems too low vs 3-month avg {three_month_avg}. Using latest candle close.")
                 if closes:
                     corrected_price = float(closes[-1])  # Convert to regular Python float
-                    # Sanity check: corrected price should be within reasonable range of yearly average
-                    if corrected_price > 0 and corrected_price < (yearly_avg * 10):  # Less than 10x yearly average
+                    # Sanity check: corrected price should be within reasonable range of 3-month average
+                    if corrected_price > 0 and corrected_price < (three_month_avg * 10):  # Less than 10x 3-month average
                         current_price = corrected_price
                         logger.info(f"Updated current price to: {current_price}")
                     else:
-                        logger.warning(f"Corrected price {corrected_price} seems unreasonable vs yearly avg {yearly_avg}. Using yearly average.")
-                        current_price = float(yearly_avg)
+                        logger.warning(f"Corrected price {corrected_price} seems unreasonable vs 3-month avg {three_month_avg}. Using 3-month average.")
+                        current_price = float(three_month_avg)
                 else:
-                    logger.warning("No candle data available. Using yearly average.")
-                    current_price = float(yearly_avg)
+                    logger.warning("No candle data available. Using 3-month average.")
+                    current_price = float(three_month_avg)
             
             # Calculate technical indicators from historical data
             indicators = self._calculate_technical_indicators(closes) if closes else {}
@@ -135,7 +200,7 @@ class CoinbaseDataFetcher:
             return {
                 'symbol': symbol,
                 'current_price': current_price,
-                'yearly_average': yearly_avg,
+                'three_month_average': three_month_avg,
                 'weekly_average': weekly_avg,
                 'bid': best_bid,
                 'ask': best_ask,

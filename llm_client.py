@@ -337,30 +337,104 @@ Respond with the asset symbol and your reasoning."""
         profit_loss_pct = market_data.get('profit_loss_pct')
         profit_loss_eur = market_data.get('profit_loss_eur')
         
+        # Enhanced price vs average analysis with explicit comparisons
+        current_price = market_data.get('current_price', 0)
+        three_month_avg = market_data.get('three_month_average', 0)
+        weekly_avg = market_data.get('weekly_average', 0)
+        
+        # Ensure values are numeric (handle cases where they might be strings)
+        try:
+            if current_price is None or current_price in ['Unknown', '']:
+                current_price = 0
+            else:
+                current_price = float(current_price)
+                
+            if three_month_avg is None or three_month_avg in ['Unknown', '']:
+                three_month_avg = 0
+            else:
+                three_month_avg = float(three_month_avg)
+                
+            if weekly_avg is None or weekly_avg in ['Unknown', '']:
+                weekly_avg = 0
+            else:
+                weekly_avg = float(weekly_avg)
+        except (ValueError, TypeError):
+            current_price = 0
+            three_month_avg = 0
+            weekly_avg = 0
+        
+        # Format averages properly (avoid scientific notation)
+        three_month_avg_str = f"€{three_month_avg:.6f}" if three_month_avg > 0 else "Unknown"
+        weekly_avg_str = f"€{weekly_avg:.6f}" if weekly_avg > 0 else "Unknown"
+        
+        # Calculate and format explicit price comparisons
+        price_vs_3month = ""
+        price_vs_weekly = ""
+        
+        if three_month_avg > 0:
+            diff_3month_pct = ((current_price - three_month_avg) / three_month_avg) * 100
+            if diff_3month_pct > 0:
+                price_vs_3month = f"ABOVE 3-month avg by {diff_3month_pct:.1f}% (premium)"
+            else:
+                price_vs_3month = f"BELOW 3-month avg by {abs(diff_3month_pct):.1f}% (discount)"
+        else:
+            price_vs_3month = "No 3-month data available"
+            
+        if weekly_avg > 0:
+            diff_weekly_pct = ((current_price - weekly_avg) / weekly_avg) * 100
+            if diff_weekly_pct > 0:
+                price_vs_weekly = f"ABOVE weekly avg by {diff_weekly_pct:.1f}% (premium)"
+            else:
+                price_vs_weekly = f"BELOW weekly avg by {abs(diff_weekly_pct):.1f}% (discount)"
+        else:
+            price_vs_weekly = "No weekly data available"
+        
         prompt = f"""Market Data Analysis:
         
         Symbol: {market_data.get('symbol', 'Unknown')}
-        Current Price: {market_data.get('current_price', 'Unknown')}"""
+        Current Price: €{current_price:.6f}"""
         
         # Add buy price and profit/loss info if available
         if buy_price is not None:
-            prompt += f"""
+            try:
+                buy_price_float = float(buy_price) if buy_price not in [None, 'Unknown', ''] else 0
+                profit_loss_pct_float = float(profit_loss_pct) if profit_loss_pct not in [None, 'Unknown', ''] else 0
+                profit_loss_eur_float = float(profit_loss_eur) if profit_loss_eur not in [None, 'Unknown', ''] else 0
+                
+                prompt += f"""
+        Original Buy Price: €{buy_price_float:.6f}
+        Profit/Loss: {profit_loss_pct_float:+.2f}% (€{profit_loss_eur_float:+.2f})"""
+            except (ValueError, TypeError):
+                prompt += f"""
         Original Buy Price: {buy_price}
-        Profit/Loss: {profit_loss_pct:+.2f}% (€{profit_loss_eur:+.2f})"""
+        Profit/Loss: {profit_loss_pct}% (€{profit_loss_eur})"""
+        
+        # Handle portfolio value safely
+        portfolio_value = market_data.get('portfolio_value', 'Unknown')
+        try:
+            portfolio_value_float = float(portfolio_value) if portfolio_value not in [None, 'Unknown', ''] else 0
+            portfolio_value_str = f"€{portfolio_value_float:.2f}"
+        except (ValueError, TypeError):
+            portfolio_value_str = str(portfolio_value)
         
         prompt += f"""
-        Price vs Yearly Avg: {market_data.get('price_vs_yearly_avg_pct', 'Unknown')}%
-        Price vs Weekly Avg: {market_data.get('price_vs_weekly_avg_pct', 'Unknown')}%
-        Volume 24h: {market_data.get('volume_24h', 'Unknown')}
-        Yearly Average: {market_data.get('yearly_average', 'Unknown')}
-        Weekly Average: {market_data.get('weekly_average', 'Unknown')}
-        RSI: {market_data.get('rsi', 'Unknown')}
-        MACD: {market_data.get('macd', 'Unknown')}
-        Moving Average (20): {market_data.get('ma_20', 'Unknown')}
-        Moving Average (50): {market_data.get('ma_50', 'Unknown')}
         
-        Current Position: {market_data.get('current_position', 'None')}
-        Portfolio Value: {market_data.get('portfolio_value', 'Unknown')}"""
+        PRICE ANALYSIS:
+        - 3-Month Average: {three_month_avg_str}
+        - Weekly Average: {weekly_avg_str}
+        - Current vs 3-Month: {price_vs_3month}
+        - Current vs Weekly: {price_vs_weekly}
+        
+        TECHNICAL INDICATORS:
+        - RSI: {market_data.get('rsi', 'Unknown')}
+        - MACD: {market_data.get('macd', 'Unknown')}
+        - Volume 24h: {market_data.get('volume_24h', 'Unknown')}
+        - Moving Average (20): {market_data.get('ma_20', 'Unknown')}
+        - Moving Average (50): {market_data.get('ma_50', 'Unknown')}
+        
+        PORTFOLIO INFO:
+        - Current Position: {market_data.get('current_position', 'None')}
+        - Portfolio Value: {portfolio_value_str}"""
         
         # Add phase instruction if available
         if market_data.get('phase_instruction'):
@@ -437,11 +511,11 @@ Respond with the asset symbol and your reasoning."""
         for asset in assets:
             symbol = asset.get('symbol', '')
             current_price = asset.get('current_price', 0)
-            yearly_avg = asset.get('yearly_average', 0)
+            three_month_avg = asset.get('three_month_average', 0)
             
-            # Calculate discount/premium vs yearly average
-            if yearly_avg > 0:
-                discount_pct = ((yearly_avg - current_price) / yearly_avg) * 100
+            # Calculate discount/premium vs 3-month average
+            if three_month_avg > 0:
+                discount_pct = ((three_month_avg - current_price) / three_month_avg) * 100
                 if discount_pct > 0:
                     valuation = f"{discount_pct:.1f}% discount"
                 else:
@@ -456,7 +530,7 @@ Respond with the asset symbol and your reasoning."""
             asset_analysis.append(f"""
 {symbol}:
   Current: €{current_price:.2f}
-  Yearly Avg: €{yearly_avg:.2f}
+  3-Month Avg: €{three_month_avg:.2f}
   Valuation: {valuation}
   RSI: {rsi:.1f}
   vs Yearly: {price_vs_yearly:+.1f}%""")
@@ -551,13 +625,13 @@ Respond with EXACTLY 5 symbols in order of preference, with brief reasoning for 
             crypto_info = next((c for c in crypto_data if c.get('symbol') == symbol), None)
             if crypto_info:
                 current_price = crypto_info.get('current_price', 0)
-                yearly_avg = crypto_info.get('yearly_average', 0)
+                three_month_avg = crypto_info.get('three_month_average', 0)
                 price_vs_yearly = crypto_info.get('price_vs_yearly_avg_pct', 0)
                 rsi = crypto_info.get('rsi', 50)
                 
                 # Calculate discount/premium
-                if yearly_avg > 0:
-                    discount_pct = ((yearly_avg - current_price) / yearly_avg) * 100
+                if three_month_avg > 0:
+                    discount_pct = ((three_month_avg - current_price) / three_month_avg) * 100
                     if discount_pct > 0:
                         valuation = f"{discount_pct:.1f}% discount"
                     else:
