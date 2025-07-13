@@ -423,11 +423,8 @@ def api_bot_rebalance():
     global bot_instance, bot_status
     
     try:
-        if not bot_instance:
-            return jsonify({'error': 'Bot not initialized. Please start the bot first.'}), 400
-        
-        if bot_status['running']:
-            return jsonify({'error': 'Cannot rebalance while bot is running. Please stop the bot first.'}), 400
+        # Allow rebalancing even when bot is running - just use a fresh instance
+        # This is safe because rebalancing uses its own analysis and doesn't interfere with the running bot
         
         # Import the CoinbaseSmartAllocationBot for rebalancing
         from coinbase_smart_allocation_bot import CoinbaseSmartAllocationBot

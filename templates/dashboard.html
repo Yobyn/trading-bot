@@ -1,0 +1,1252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trading Bot Dashboard</title>
+    <script src="https://cdn.socket.io/4.0.0/socket.io.min.js"></script>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <style>
+        .metric-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .metric-value {
+            font-size: 2rem;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        .metric-label {
+            font-size: 0.9rem;
+            opacity: 0.8;
+        }
+        .status-running {
+            color: #28a745;
+        }
+        .status-stopped {
+            color: #dc3545;
+        }
+        .positive {
+            color: #28a745;
+        }
+        .negative {
+            color: #dc3545;
+        }
+        .chart-container {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .table-container {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .control-panel {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .last-update {
+            font-size: 0.8rem;
+            color: #6c757d;
+        }
+        body {
+            background-color: #f5f5f5;
+        }
+        .navbar {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .btn-success {
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            border: none;
+        }
+        .btn-danger {
+            background: linear-gradient(135deg, #dc3545 0%, #e83e8c 100%);
+            border: none;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark">
+        <div class="container-fluid">
+            <span class="navbar-brand mb-0 h1">🤖 Trading Bot Dashboard</span>
+            
+            <!-- Navigation Menu -->
+            <div class="collapse navbar-collapse">
+                <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                    <li class="nav-item">
+                        <a class="nav-link active" href="#" onclick="showSection('dashboard')">Dashboard</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#" onclick="showSection('decisions')">Trading Decisions</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#" onclick="showSection('logs')">Logs</a>
+                    </li>
+                </ul>
+            </div>
+            
+            <div class="d-flex">
+                <span id="connection-status" class="text-light me-3">Connecting...</span>
+                <span id="last-update" class="text-light last-update"></span>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid mt-4">
+        <!-- Dashboard Section -->
+        <div id="dashboard-section" class="section-content">
+            <!-- Control Panel -->
+            <div class="row">
+                <div class="col-12">
+                    <div class="control-panel">
+                        <h5>Bot Control</h5>
+                    <div class="row">
+                        <div class="col-md-3">
+                            <label for="portfolio-select" class="form-label">Portfolio</label>
+                            <select class="form-select" id="portfolio-select">
+                                <option value="coinbase_all_eur">All EUR Cryptos</option>
+                                <option value="coinbase_majors">Major Cryptos</option>
+                                <option value="coinbase_majors_usd">Major USD Cryptos</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label for="strategy-select" class="form-label">Strategy</label>
+                            <select class="form-select" id="strategy-select">
+                                <option value="conservative">Conservative</option>
+                                <option value="moderate" selected>Moderate</option>
+                                <option value="aggressive">Aggressive</option>
+                                <option value="scalping">Scalping</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label for="interval-input" class="form-label">Interval (minutes)</label>
+                            <input type="number" class="form-control" id="interval-input" value="15" min="1" max="1440">
+                        </div>
+                        <div class="col-md-3 d-flex align-items-end">
+                            <button id="start-btn" class="btn btn-success me-2" style="display: none;">Start Bot</button>
+                            <button id="stop-btn" class="btn btn-danger me-2" style="display: none;">Stop Bot</button>
+                            <button id="rebalance-btn" class="btn btn-warning fw-bold" title="Rebalance portfolio positions">🔄 Rebalance</button>
+                        </div>
+                    </div>
+                    <div class="row mt-3">
+                        <div class="col-12">
+                            <div class="alert alert-info" role="alert">
+                                <strong>Status:</strong> <span id="bot-status">Stopped</span>
+                                <span id="bot-error" class="text-danger ms-3"></span>
+                                <span id="last-rebalance" class="text-muted ms-3"></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Key Metrics -->
+        <div class="row">
+            <div class="col-md-3">
+                <div class="metric-card">
+                    <div class="metric-value" id="portfolio-value">€0.00</div>
+                    <div class="metric-label">Portfolio Value</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="metric-card">
+                    <div class="metric-value" id="total-pnl">€0.00</div>
+                    <div class="metric-label">Total P&L</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="metric-card">
+                    <div class="metric-value" id="position-count">0</div>
+                    <div class="metric-label">Active Positions</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="metric-card">
+                    <div class="metric-value" id="win-rate">0%</div>
+                    <div class="metric-label">Win Rate</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Performance Metrics -->
+        <div class="row">
+            <div class="col-md-3">
+                <div class="metric-card">
+                    <div class="metric-value" id="total-return">0%</div>
+                    <div class="metric-label">Total Return</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="metric-card">
+                    <div class="metric-value" id="sharpe-ratio">0.00</div>
+                    <div class="metric-label">Sharpe Ratio</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="metric-card">
+                    <div class="metric-value" id="max-drawdown">0%</div>
+                    <div class="metric-label">Max Drawdown</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="metric-card">
+                    <div class="metric-value" id="volatility">0%</div>
+                    <div class="metric-label">Volatility</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Charts -->
+        <div class="row">
+            <div class="col-md-8">
+                <div class="chart-container">
+                    <h5>Portfolio Value Over Time</h5>
+                    <div id="portfolio-chart"></div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="chart-container">
+                    <h5>Risk Metrics</h5>
+                    <div id="risk-chart"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tables -->
+        <div class="row">
+            <div class="col-md-6">
+                <div class="table-container">
+                    <h5>Current Positions</h5>
+                    <div class="text-muted small mb-2">Only showing positions ≥ €1.00</div>
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Symbol</th>
+                                    <th>Amount</th>
+                                    <th>Value</th>
+                                    <th>P&L</th>
+                                </tr>
+                            </thead>
+                            <tbody id="positions-table">
+                                <tr>
+                                    <td colspan="4" class="text-center text-muted">No tradeable positions</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="table-container">
+                    <h5>Recent Trades</h5>
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Time</th>
+                                    <th>Symbol</th>
+                                    <th>Action</th>
+                                    <th>Value</th>
+                                    <th>P&L</th>
+                                </tr>
+                            </thead>
+                            <tbody id="trades-table">
+                                <tr>
+                                    <td colspan="5" class="text-center text-muted">No trades</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent Decisions -->
+        <div class="row">
+            <div class="col-12">
+                <div class="table-container">
+                    <h5>Recent Trading Decisions</h5>
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Time</th>
+                                    <th>Symbol</th>
+                                    <th>Action</th>
+                                    <th>Price</th>
+                                    <th>RSI</th>
+                                    <th>Reason</th>
+                                    <th>Success</th>
+                                </tr>
+                            </thead>
+                            <tbody id="decisions-table">
+                                <tr>
+                                    <td colspan="7" class="text-center text-muted">No decisions</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+                    </div>
+        </div>
+        
+        <!-- Rebalance Confirmation Modal -->
+        <div class="modal fade" id="rebalanceModal" tabindex="-1" aria-labelledby="rebalanceModalLabel" aria-hidden="true">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header bg-warning text-dark">
+                        <h5 class="modal-title" id="rebalanceModalLabel">⚠️ Portfolio Rebalancing</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="alert alert-warning">
+                            <strong>REBALANCING PROCESS:</strong> This action will:
+                            <ul class="mb-0 mt-2">
+                                <li>🔄 <strong>REBALANCE ALL</strong> current positions</li>
+                                <li>🤖 Ask LLM to select TOP 5 cryptocurrencies</li>
+                                <li>💰 Reinvest all capital based on LLM recommendations</li>
+                                <li>📊 Create a completely new portfolio allocation</li>
+                                <li>✅ <strong>Safe to use while bot is running</strong></li>
+                            </ul>
+                        </div>
+                        
+                        <div id="current-portfolio-preview">
+                            <h6>Current Portfolio:</h6>
+                            <div id="current-positions-preview">Loading...</div>
+                        </div>
+                        
+                        <div class="mt-3">
+                            <strong>Are you sure you want to proceed?</strong>
+                            <p class="text-muted small">This action cannot be undone and will affect your entire portfolio.</p>
+                        </div>
+                        
+                        <div class="form-check mt-3">
+                            <input class="form-check-input" type="checkbox" id="rebalanceConfirmCheck">
+                            <label class="form-check-label" for="rebalanceConfirmCheck">
+                                I understand this will rebalance all positions and create a new portfolio allocation
+                            </label>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="button" class="btn btn-danger" id="confirm-rebalance-btn" disabled>
+                            🔄 Confirm Rebalancing
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Trading Decisions Section -->
+        <div id="decisions-section" class="section-content" style="display: none;">
+            <div class="row">
+                <div class="col-12">
+                    <div class="table-container">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h5>Trading Decisions History</h5>
+                            <div class="d-flex gap-2">
+                                <select id="decision-action-filter" class="form-select form-select-sm" style="width: auto;">
+                                    <option value="all">All Actions</option>
+                                    <option value="BUY">Buy Only</option>
+                                    <option value="SELL">Sell Only</option>
+                                    <option value="HOLD">Hold Only</option>
+                                </select>
+                                <select id="decision-symbol-filter" class="form-select form-select-sm" style="width: auto;">
+                                    <option value="all">All Symbols</option>
+                                </select>
+                                <select id="decision-days-filter" class="form-select form-select-sm" style="width: auto;">
+                                    <option value="1">Last 24 hours</option>
+                                    <option value="7" selected>Last 7 days</option>
+                                    <option value="30">Last 30 days</option>
+                                    <option value="90">Last 90 days</option>
+                                    <option value="all">All time</option>
+                                </select>
+                                <button id="refresh-decisions" class="btn btn-sm btn-outline-primary">Refresh</button>
+                            </div>
+                        </div>
+                        
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead class="table-dark">
+                                    <tr>
+                                        <th>Timestamp</th>
+                                        <th>Symbol</th>
+                                        <th>Action</th>
+                                        <th>Price</th>
+                                        <th>RSI</th>
+                                        <th>MACD</th>
+                                        <th>Confidence</th>
+                                        <th>Success</th>
+                                        <th>Reason</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="detailed-decisions-table">
+                                    <tr>
+                                        <td colspan="9" class="text-center text-muted">Loading decisions...</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        
+                        <div class="mt-3">
+                            <nav aria-label="Decisions pagination">
+                                <ul class="pagination pagination-sm justify-content-center" id="decisions-pagination">
+                                    <!-- Pagination will be populated by JavaScript -->
+                                </ul>
+                            </nav>
+                        </div>
+                        
+                        <div class="mt-2 text-muted small">
+                            <span id="decisions-info">Loading...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Decision Details Modal -->
+            <div class="modal fade" id="decisionModal" tabindex="-1" aria-labelledby="decisionModalLabel" aria-hidden="true">
+                <div class="modal-dialog modal-lg">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title" id="decisionModalLabel">Trading Decision Details</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <h6>Decision Info</h6>
+                                    <table class="table table-sm">
+                                        <tr><td><strong>Symbol:</strong></td><td id="modal-symbol"></td></tr>
+                                        <tr><td><strong>Action:</strong></td><td id="modal-action"></td></tr>
+                                        <tr><td><strong>Timestamp:</strong></td><td id="modal-timestamp"></td></tr>
+                                        <tr><td><strong>Confidence:</strong></td><td id="modal-confidence"></td></tr>
+                                        <tr><td><strong>Success:</strong></td><td id="modal-success"></td></tr>
+                                    </table>
+                                </div>
+                                <div class="col-md-6">
+                                    <h6>Market Data</h6>
+                                    <table class="table table-sm">
+                                        <tr><td><strong>Price:</strong></td><td id="modal-price"></td></tr>
+                                        <tr><td><strong>RSI:</strong></td><td id="modal-rsi"></td></tr>
+                                        <tr><td><strong>MACD:</strong></td><td id="modal-macd"></td></tr>
+                                        <tr><td><strong>Volume:</strong></td><td id="modal-volume"></td></tr>
+                                        <tr><td><strong>3-Month Avg:</strong></td><td id="modal-3month-avg"></td></tr>
+                                    </table>
+                                </div>
+                            </div>
+                            <div class="row mt-3">
+                                <div class="col-12">
+                                    <h6>Decision Reasoning</h6>
+                                    <div class="alert alert-info" id="modal-reason">
+                                        <!-- Reason will be populated here -->
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="row mt-3" id="modal-execution-section" style="display: none;">
+                                <div class="col-12">
+                                    <h6>Execution Details</h6>
+                                    <div class="alert alert-secondary" id="modal-execution">
+                                        <!-- Execution details will be populated here -->
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Logs Section -->
+        <div id="logs-section" class="section-content" style="display: none;">
+            <div class="row">
+                <div class="col-12">
+                    <div class="table-container">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h5>Bot Logs</h5>
+                            <div class="d-flex gap-2">
+                                <select id="log-level-filter" class="form-select form-select-sm" style="width: auto;">
+                                    <option value="all">All Levels</option>
+                                    <option value="error">Error</option>
+                                    <option value="warning">Warning</option>
+                                    <option value="info">Info</option>
+                                    <option value="debug">Debug</option>
+                                </select>
+                                <select id="log-lines-filter" class="form-select form-select-sm" style="width: auto;">
+                                    <option value="50">Last 50 lines</option>
+                                    <option value="100" selected>Last 100 lines</option>
+                                    <option value="200">Last 200 lines</option>
+                                    <option value="500">Last 500 lines</option>
+                                </select>
+                                <button id="refresh-logs" class="btn btn-sm btn-outline-primary">Refresh</button>
+                                <button id="auto-refresh-logs" class="btn btn-sm btn-outline-success">Auto-refresh: OFF</button>
+                            </div>
+                        </div>
+                        
+                        <div id="logs-container" style="height: 600px; overflow-y: auto; background: #1a1a1a; color: #fff; padding: 15px; border-radius: 5px; font-family: 'Courier New', monospace; font-size: 12px;">
+                            <div class="text-center text-muted">Loading logs...</div>
+                        </div>
+                        
+                        <div class="mt-2 text-muted small">
+                            <span id="logs-info">Loading...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // WebSocket connection
+        const socket = io();
+        
+        // Connection status
+        socket.on('connect', function() {
+            document.getElementById('connection-status').textContent = '🟢 Connected';
+            document.getElementById('connection-status').className = 'text-success me-3';
+        });
+        
+        socket.on('disconnect', function() {
+            document.getElementById('connection-status').textContent = '🔴 Disconnected';
+            document.getElementById('connection-status').className = 'text-danger me-3';
+        });
+
+        // Real-time updates
+        socket.on('portfolio_update', function(data) {
+            updatePortfolioMetrics(data);
+        });
+
+        socket.on('performance_update', function(data) {
+            updatePerformanceMetrics(data);
+        });
+
+        socket.on('risk_update', function(data) {
+            updateRiskChart(data);
+        });
+
+        // Update functions
+        function updatePortfolioMetrics(data) {
+            document.getElementById('portfolio-value').textContent = `€${data.total_value?.toFixed(2) || '0.00'}`;
+            
+            const pnlElement = document.getElementById('total-pnl');
+            const pnl = data.total_pnl || 0;
+            pnlElement.textContent = `€${pnl.toFixed(2)}`;
+            pnlElement.className = `metric-value ${pnl >= 0 ? 'positive' : 'negative'}`;
+            
+            document.getElementById('position-count').textContent = data.position_count || 0;
+            
+            if (data.last_update) {
+                document.getElementById('last-update').textContent = `Last update: ${new Date(data.last_update).toLocaleTimeString()}`;
+            }
+        }
+
+        function updatePerformanceMetrics(data) {
+            const totalReturn = (data.total_return || 0) * 100;
+            const totalReturnElement = document.getElementById('total-return');
+            totalReturnElement.textContent = `${totalReturn.toFixed(1)}%`;
+            totalReturnElement.className = `metric-value ${totalReturn >= 0 ? 'positive' : 'negative'}`;
+            
+            document.getElementById('sharpe-ratio').textContent = (data.sharpe_ratio || 0).toFixed(2);
+            document.getElementById('max-drawdown').textContent = `${((data.max_drawdown || 0) * 100).toFixed(1)}%`;
+            document.getElementById('volatility').textContent = `${((data.volatility || 0) * 100).toFixed(1)}%`;
+            document.getElementById('win-rate').textContent = `${((data.win_rate || 0) * 100).toFixed(1)}%`;
+        }
+
+        function updateRiskChart(data) {
+            const riskData = [
+                {
+                    type: 'bar',
+                    x: ['VaR', 'CVaR', 'Concentration', 'Volatility'],
+                    y: [
+                        (data.portfolio_var || 0) * 100,
+                        (data.portfolio_cvar || 0) * 100,
+                        (data.concentration_risk || 0) * 100,
+                        (data.volatility || 0) * 100
+                    ],
+                    marker: {
+                        color: ['#ff6b6b', '#ffa726', '#ffee58', '#66bb6a']
+                    }
+                }
+            ];
+            
+            const layout = {
+                title: 'Risk Metrics (%)',
+                yaxis: { title: 'Percentage' },
+                margin: { t: 40, b: 40, l: 40, r: 40 }
+            };
+            
+            Plotly.newPlot('risk-chart', riskData, layout, {responsive: true});
+        }
+
+        // Bot control functions
+        document.getElementById('start-btn').addEventListener('click', function() {
+            const portfolioName = document.getElementById('portfolio-select').value;
+            const strategyName = document.getElementById('strategy-select').value;
+            const intervalMinutes = parseInt(document.getElementById('interval-input').value);
+            
+            // Immediately update button visibility
+            const startBtn = document.getElementById('start-btn');
+            const stopBtn = document.getElementById('stop-btn');
+            const rebalanceBtn = document.getElementById('rebalance-btn');
+            
+            startBtn.style.display = 'none';
+            stopBtn.style.display = 'inline-block';
+            // Keep rebalance button enabled - it's now safe to rebalance while bot is running
+            rebalanceBtn.disabled = false;
+            rebalanceBtn.title = 'Rebalance portfolio positions (safe to use while bot is running)';
+            
+            fetch('/api/bot/start', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    portfolio_name: portfolioName,
+                    strategy_name: strategyName,
+                    interval_minutes: intervalMinutes
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    document.getElementById('bot-error').textContent = data.error;
+                    // Revert button visibility on error
+                    startBtn.style.display = 'inline-block';
+                    stopBtn.style.display = 'none';
+                    // Rebalance button stays enabled
+                    rebalanceBtn.disabled = false;
+                    rebalanceBtn.title = 'Rebalance portfolio positions';
+                } else {
+                    document.getElementById('bot-status').textContent = 'Starting...';
+                    document.getElementById('bot-error').textContent = '';
+                }
+            });
+        });
+
+        document.getElementById('stop-btn').addEventListener('click', function() {
+            // Immediately update button visibility
+            const startBtn = document.getElementById('start-btn');
+            const stopBtn = document.getElementById('stop-btn');
+            const rebalanceBtn = document.getElementById('rebalance-btn');
+            
+            startBtn.style.display = 'inline-block';
+            stopBtn.style.display = 'none';
+            // Rebalance button stays enabled regardless of bot state
+            rebalanceBtn.disabled = false;
+            rebalanceBtn.title = 'Rebalance portfolio positions';
+            
+            fetch('/api/bot/stop', {
+                method: 'POST'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    document.getElementById('bot-error').textContent = data.error;
+                    // Revert button visibility on error
+                    startBtn.style.display = 'none';
+                    stopBtn.style.display = 'inline-block';
+                    // Rebalance button stays enabled even when bot is running
+                    rebalanceBtn.disabled = false;
+                    rebalanceBtn.title = 'Rebalance portfolio positions (safe to use while bot is running)';
+                } else {
+                    document.getElementById('bot-status').textContent = 'Stopped';
+                    document.getElementById('bot-error').textContent = '';
+                }
+            });
+        });
+
+        document.getElementById('rebalance-btn').addEventListener('click', function() {
+            // Load current portfolio data
+            fetch('/api/positions')
+                .then(response => response.json())
+                .then(data => {
+                    const previewDiv = document.getElementById('current-positions-preview');
+                    if (data && data.length > 0) {
+                        let totalValue = 0;
+                        const positionsHtml = data.map(pos => {
+                            totalValue += pos.eur_value;
+                            const profitClass = pos.profit_loss_pct >= 0 ? 'text-success' : 'text-danger';
+                            return `
+                                <div class="d-flex justify-content-between">
+                                    <span><strong>${pos.symbol}</strong>: ${pos.amount.toFixed(6)}</span>
+                                    <span>€${pos.eur_value.toFixed(2)} <span class="${profitClass}">(${pos.profit_loss_pct.toFixed(1)}%)</span></span>
+                                </div>
+                            `;
+                        }).join('');
+                        
+                        previewDiv.innerHTML = `
+                            ${positionsHtml}
+                            <hr>
+                            <div class="d-flex justify-content-between"><strong>Total Tradeable: €${totalValue.toFixed(2)}</strong></div>
+                            <div class="text-muted small">Note: Only showing positions ≥ €1.00</div>
+                        `;
+                    } else {
+                        previewDiv.innerHTML = '<div class="text-muted">No tradeable positions (≥ €1.00)</div>';
+                    }
+                })
+                .catch(error => {
+                    document.getElementById('current-positions-preview').innerHTML = '<div class="text-danger">Error loading positions</div>';
+                });
+            
+            // Show modal
+            new bootstrap.Modal(document.getElementById('rebalanceModal')).show();
+        });
+
+        // Enable/disable confirm button based on checkbox
+        document.getElementById('rebalanceConfirmCheck').addEventListener('change', function() {
+            document.getElementById('confirm-rebalance-btn').disabled = !this.checked;
+        });
+
+        document.getElementById('confirm-rebalance-btn').addEventListener('click', function() {
+            const button = this;
+            const originalText = button.innerHTML;
+            
+            // Show loading state
+            button.innerHTML = '🔄 Rebalancing...';
+            button.disabled = true;
+            
+            fetch('/api/bot/rebalance', {
+                method: 'POST'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    document.getElementById('bot-error').textContent = data.error;
+                    alert('Rebalancing failed: ' + data.error);
+                } else {
+                    document.getElementById('bot-error').textContent = '';
+                    alert('Rebalancing initiated successfully! Check the logs for progress.');
+                    
+                    // Hide modal
+                    bootstrap.Modal.getInstance(document.getElementById('rebalanceModal')).hide();
+                    
+                    // Reset form
+                    document.getElementById('rebalanceConfirmCheck').checked = false;
+                }
+            })
+            .catch(error => {
+                console.error('Rebalancing error:', error);
+                alert('Rebalancing failed: ' + error.message);
+            })
+            .finally(() => {
+                // Restore button
+                button.innerHTML = originalText;
+                button.disabled = false;
+            });
+        });
+
+        // Load initial data
+        function loadInitialData() {
+            // Load portfolio data
+            fetch('/api/portfolio')
+                .then(response => response.json())
+                .then(data => updatePortfolioMetrics(data));
+            
+            // Load performance data
+            fetch('/api/performance')
+                .then(response => response.json())
+                .then(data => updatePerformanceMetrics(data));
+            
+            // Load risk data
+            fetch('/api/risk')
+                .then(response => response.json())
+                .then(data => updateRiskChart(data));
+            
+            // Load positions
+            fetch('/api/positions')
+                .then(response => response.json())
+                .then(data => updatePositionsTable(data));
+            
+            // Load trades
+            fetch('/api/trades')
+                .then(response => response.json())
+                .then(data => updateTradesTable(data));
+            
+            // Load decisions
+            fetch('/api/decisions?limit=10')
+                .then(response => response.json())
+                .then(data => updateDecisionsTable(data));
+            
+            // Load portfolio chart
+            fetch('/api/chart')
+                .then(response => response.json())
+                .then(data => updatePortfolioChart(data));
+            
+            // Load bot status
+            fetch('/api/bot/status')
+                .then(response => response.json())
+                .then(data => updateBotStatus(data));
+        }
+
+        function updatePositionsTable(data) {
+            const tbody = document.getElementById('positions-table');
+            if (!data || data.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted">No tradeable positions (≥ €1.00)</td></tr>';
+                return;
+            }
+            
+            tbody.innerHTML = data.map(pos => `
+                <tr>
+                    <td>${pos.symbol}</td>
+                    <td>${pos.amount.toFixed(6)}</td>
+                    <td>€${pos.eur_value.toFixed(2)}</td>
+                    <td class="${pos.profit_loss_pct >= 0 ? 'positive' : 'negative'}">
+                        ${pos.profit_loss_pct.toFixed(1)}%
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function updateTradesTable(data) {
+            const tbody = document.getElementById('trades-table');
+            if (!data || data.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">No trades</td></tr>';
+                return;
+            }
+            
+            tbody.innerHTML = data.slice(0, 10).map(trade => `
+                <tr>
+                    <td>${new Date(trade.timestamp).toLocaleTimeString()}</td>
+                    <td>${trade.symbol}</td>
+                    <td><span class="badge bg-${trade.action === 'BUY' ? 'success' : trade.action === 'SELL' ? 'danger' : 'secondary'}">${trade.action}</span></td>
+                    <td>€${trade.value.toFixed(2)}</td>
+                    <td class="${trade.profit_loss >= 0 ? 'positive' : 'negative'}">
+                        €${trade.profit_loss.toFixed(2)}
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function updateDecisionsTable(data) {
+            const tbody = document.getElementById('decisions-table');
+            if (!data || data.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted">No recent trading decisions found<br><small>Start the bot to see trading decisions appear here</small></td></tr>';
+                return;
+            }
+            
+            tbody.innerHTML = data.map(decision => `
+                <tr>
+                    <td>${new Date(decision.timestamp).toLocaleTimeString()}</td>
+                    <td>${decision.symbol}</td>
+                    <td><span class="badge bg-${decision.action === 'BUY' ? 'success' : decision.action === 'SELL' ? 'danger' : 'secondary'}">${decision.action}</span></td>
+                    <td>€${decision.market_price?.toFixed(4) || 'N/A'}</td>
+                    <td>${decision.rsi?.toFixed(1) || 'N/A'}</td>
+                    <td>${decision.reason || 'N/A'}</td>
+                    <td>${decision.success ? '✅' : '❌'}</td>
+                </tr>
+            `).join('');
+        }
+
+        function updatePortfolioChart(data) {
+            if (!data.timestamps || data.timestamps.length === 0) {
+                return;
+            }
+            
+            const trace = {
+                x: data.timestamps,
+                y: data.values,
+                type: 'scatter',
+                mode: 'lines',
+                name: 'Portfolio Value',
+                line: {
+                    color: '#667eea',
+                    width: 2
+                }
+            };
+            
+            const layout = {
+                title: 'Portfolio Value Over Time',
+                xaxis: { title: 'Time' },
+                yaxis: { title: 'Value (€)' },
+                margin: { t: 40, b: 40, l: 60, r: 40 }
+            };
+            
+            Plotly.newPlot('portfolio-chart', [trace], layout, {responsive: true});
+        }
+
+        function updateBotStatus(data) {
+            const statusElement = document.getElementById('bot-status');
+            const startBtn = document.getElementById('start-btn');
+            const stopBtn = document.getElementById('stop-btn');
+            const rebalanceBtn = document.getElementById('rebalance-btn');
+            
+            if (data.running) {
+                statusElement.textContent = 'Running';
+                statusElement.className = 'status-running';
+                // Show stop button, hide start button
+                startBtn.style.display = 'none';
+                stopBtn.style.display = 'inline-block';
+                // Rebalance is now safe to use while bot is running
+                rebalanceBtn.disabled = false;
+                rebalanceBtn.title = 'Rebalance portfolio positions (safe to use while bot is running)';
+            } else {
+                statusElement.textContent = 'Stopped';
+                statusElement.className = 'status-stopped';
+                // Show start button, hide stop button
+                startBtn.style.display = 'inline-block';
+                stopBtn.style.display = 'none';
+                // Rebalance is always available
+                rebalanceBtn.disabled = false;
+                rebalanceBtn.title = 'Rebalance portfolio positions';
+            }
+            
+            if (data.error) {
+                document.getElementById('bot-error').textContent = data.error;
+            }
+            
+            // Show last rebalance time
+            if (data.last_rebalance) {
+                const rebalanceTime = new Date(data.last_rebalance).toLocaleString();
+                document.getElementById('last-rebalance').textContent = `(Last rebalance: ${rebalanceTime})`;
+            }
+        }
+
+        // Section navigation
+        function showSection(sectionName) {
+            // Hide all sections
+            document.querySelectorAll('.section-content').forEach(section => {
+                section.style.display = 'none';
+            });
+            
+            // Remove active class from all nav links
+            document.querySelectorAll('.nav-link').forEach(link => {
+                link.classList.remove('active');
+            });
+            
+            // Show selected section
+            document.getElementById(sectionName + '-section').style.display = 'block';
+            
+            // Add active class to selected nav link
+            event.target.classList.add('active');
+            
+            // Load specific section data
+            if (sectionName === 'logs') {
+                loadLogs();
+            } else if (sectionName === 'decisions') {
+                loadTradingDecisions();
+            }
+        }
+
+        // Logs functionality
+        let autoRefreshLogs = false;
+        let logsRefreshInterval;
+
+        function loadLogs() {
+            const lines = document.getElementById('log-lines-filter').value;
+            const level = document.getElementById('log-level-filter').value;
+            
+            fetch(`/api/logs?lines=${lines}&level=${level}`)
+                .then(response => response.json())
+                .then(data => {
+                    const container = document.getElementById('logs-container');
+                    const info = document.getElementById('logs-info');
+                    
+                    if (data.error) {
+                        container.innerHTML = `<div class="text-danger">Error loading logs: ${data.error}</div>`;
+                        info.textContent = 'Error loading logs';
+                        return;
+                    }
+                    
+                    if (!data.logs || data.logs.length === 0) {
+                        container.innerHTML = '<div class="text-muted">No logs found</div>';
+                        info.textContent = data.message || 'No logs available';
+                        return;
+                    }
+                    
+                    // Format logs
+                    const logsHtml = data.logs.map(log => {
+                        const levelColor = getLevelColor(log.level);
+                        const timestamp = log.timestamp ? new Date(log.timestamp).toLocaleString() : '';
+                        return `
+                            <div class="log-entry" style="margin-bottom: 2px;">
+                                <span class="text-muted">${timestamp}</span>
+                                <span class="badge" style="background-color: ${levelColor}; font-size: 10px;">${log.level}</span>
+                                <span class="log-message">${escapeHtml(log.message)}</span>
+                            </div>
+                        `;
+                    }).join('');
+                    
+                    container.innerHTML = logsHtml;
+                    
+                    // Auto-scroll to bottom
+                    container.scrollTop = container.scrollHeight;
+                    
+                    // Update info
+                    info.textContent = `${data.total_lines} entries from ${data.log_file}`;
+                })
+                .catch(error => {
+                    console.error('Error loading logs:', error);
+                    document.getElementById('logs-container').innerHTML = 
+                        `<div class="text-danger">Error loading logs: ${error.message}</div>`;
+                });
+        }
+
+        function getLevelColor(level) {
+            const colors = {
+                'ERROR': '#dc3545',
+                'WARNING': '#ffc107',
+                'INFO': '#17a2b8',
+                'DEBUG': '#6c757d',
+                'RAW': '#6f42c1'
+            };
+            return colors[level] || '#6c757d';
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function toggleAutoRefresh() {
+            const button = document.getElementById('auto-refresh-logs');
+            autoRefreshLogs = !autoRefreshLogs;
+            
+            if (autoRefreshLogs) {
+                button.textContent = 'Auto-refresh: ON';
+                button.classList.remove('btn-outline-success');
+                button.classList.add('btn-success');
+                logsRefreshInterval = setInterval(loadLogs, 5000); // Refresh every 5 seconds
+            } else {
+                button.textContent = 'Auto-refresh: OFF';
+                button.classList.remove('btn-success');
+                button.classList.add('btn-outline-success');
+                if (logsRefreshInterval) {
+                    clearInterval(logsRefreshInterval);
+                }
+            }
+        }
+
+        // Event listeners for logs
+        document.getElementById('refresh-logs').addEventListener('click', loadLogs);
+        document.getElementById('auto-refresh-logs').addEventListener('click', toggleAutoRefresh);
+        document.getElementById('log-level-filter').addEventListener('change', loadLogs);
+        document.getElementById('log-lines-filter').addEventListener('change', loadLogs);
+
+        // Trading decisions functionality
+        let currentDecisionsPage = 1;
+        const decisionsPerPage = 20;
+        let allDecisions = [];
+        let filteredDecisions = [];
+
+        function loadTradingDecisions() {
+            const days = document.getElementById('decision-days-filter').value;
+            const url = days === 'all' ? '/api/decisions?limit=1000' : `/api/decisions?days=${days}&limit=1000`;
+            
+            fetch(url)
+                .then(response => response.json())
+                .then(data => {
+                    allDecisions = data || [];
+                    populateSymbolFilter();
+                    filterDecisions();
+                })
+                .catch(error => {
+                    console.error('Error loading trading decisions:', error);
+                    document.getElementById('detailed-decisions-table').innerHTML = 
+                        '<tr><td colspan="9" class="text-center text-danger">Error loading decisions</td></tr>';
+                });
+        }
+
+        function populateSymbolFilter() {
+            const symbolFilter = document.getElementById('decision-symbol-filter');
+            const symbols = [...new Set(allDecisions.map(d => d.symbol))].sort();
+            
+            // Clear existing options except "All Symbols"
+            symbolFilter.innerHTML = '<option value="all">All Symbols</option>';
+            
+            symbols.forEach(symbol => {
+                const option = document.createElement('option');
+                option.value = symbol;
+                option.textContent = symbol;
+                symbolFilter.appendChild(option);
+            });
+        }
+
+        function filterDecisions() {
+            const actionFilter = document.getElementById('decision-action-filter').value;
+            const symbolFilter = document.getElementById('decision-symbol-filter').value;
+            
+            filteredDecisions = allDecisions.filter(decision => {
+                const actionMatch = actionFilter === 'all' || decision.action === actionFilter;
+                const symbolMatch = symbolFilter === 'all' || decision.symbol === symbolFilter;
+                return actionMatch && symbolMatch;
+            });
+            
+            currentDecisionsPage = 1;
+            displayDecisions();
+            updateDecisionsPagination();
+        }
+
+        function displayDecisions() {
+            const tbody = document.getElementById('detailed-decisions-table');
+            const startIndex = (currentDecisionsPage - 1) * decisionsPerPage;
+            const endIndex = startIndex + decisionsPerPage;
+            const pageDecisions = filteredDecisions.slice(startIndex, endIndex);
+            
+            if (pageDecisions.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted">No trading decisions found<br><small>Start the bot to see trading decisions appear here</small></td></tr>';
+                document.getElementById('decisions-info').textContent = 'No decisions found - Start the bot to see trading activity';
+                return;
+            }
+            
+            tbody.innerHTML = pageDecisions.map(decision => {
+                const timestamp = new Date(decision.timestamp).toLocaleString();
+                const actionBadge = getActionBadge(decision.action);
+                const successIcon = decision.success ? '✅' : '❌';
+                const confidence = decision.confidence ? `${decision.confidence}%` : 'N/A';
+                const price = decision.market_price ? `€${decision.market_price.toFixed(6)}` : 'N/A';
+                const rsi = decision.rsi ? decision.rsi.toFixed(1) : 'N/A';
+                const macd = decision.macd ? decision.macd.toFixed(4) : 'N/A';
+                const reasonPreview = decision.reason ? 
+                    (decision.reason.length > 50 ? decision.reason.substring(0, 50) + '...' : decision.reason) : 'N/A';
+                
+                return `
+                    <tr style="cursor: pointer;" onclick="showDecisionDetails('${decision.id || Math.random()}', ${JSON.stringify(decision).replace(/"/g, '&quot;')})">
+                        <td>${timestamp}</td>
+                        <td><strong>${decision.symbol}</strong></td>
+                        <td>${actionBadge}</td>
+                        <td>${price}</td>
+                        <td>${rsi}</td>
+                        <td>${macd}</td>
+                        <td>${confidence}</td>
+                        <td>${successIcon}</td>
+                        <td title="${decision.reason || 'N/A'}">${reasonPreview}</td>
+                    </tr>
+                `;
+            }).join('');
+            
+            // Update info
+            const total = filteredDecisions.length;
+            const showing = Math.min(endIndex, total);
+            document.getElementById('decisions-info').textContent = 
+                `Showing ${startIndex + 1}-${showing} of ${total} decisions`;
+        }
+
+        function getActionBadge(action) {
+            const badges = {
+                'BUY': '<span class="badge bg-success">BUY</span>',
+                'SELL': '<span class="badge bg-danger">SELL</span>',
+                'HOLD': '<span class="badge bg-secondary">HOLD</span>',
+                'BUY_FAILED': '<span class="badge bg-warning">BUY FAILED</span>',
+                'SELL_FAILED': '<span class="badge bg-warning">SELL FAILED</span>'
+            };
+            return badges[action] || `<span class="badge bg-info">${action}</span>`;
+        }
+
+        function updateDecisionsPagination() {
+            const pagination = document.getElementById('decisions-pagination');
+            const totalPages = Math.ceil(filteredDecisions.length / decisionsPerPage);
+            
+            if (totalPages <= 1) {
+                pagination.innerHTML = '';
+                return;
+            }
+            
+            let paginationHTML = '';
+            
+            // Previous button
+            if (currentDecisionsPage > 1) {
+                paginationHTML += `<li class="page-item"><a class="page-link" href="#" onclick="changeDecisionsPage(${currentDecisionsPage - 1})">Previous</a></li>`;
+            }
+            
+            // Page numbers
+            const startPage = Math.max(1, currentDecisionsPage - 2);
+            const endPage = Math.min(totalPages, currentDecisionsPage + 2);
+            
+            for (let i = startPage; i <= endPage; i++) {
+                const activeClass = i === currentDecisionsPage ? 'active' : '';
+                paginationHTML += `<li class="page-item ${activeClass}"><a class="page-link" href="#" onclick="changeDecisionsPage(${i})">${i}</a></li>`;
+            }
+            
+            // Next button
+            if (currentDecisionsPage < totalPages) {
+                paginationHTML += `<li class="page-item"><a class="page-link" href="#" onclick="changeDecisionsPage(${currentDecisionsPage + 1})">Next</a></li>`;
+            }
+            
+            pagination.innerHTML = paginationHTML;
+        }
+
+        function changeDecisionsPage(page) {
+            currentDecisionsPage = page;
+            displayDecisions();
+            updateDecisionsPagination();
+        }
+
+        function showDecisionDetails(id, decisionData) {
+            const decision = typeof decisionData === 'string' ? JSON.parse(decisionData) : decisionData;
+            
+            // Populate modal with decision details
+            document.getElementById('modal-symbol').textContent = decision.symbol || 'N/A';
+            document.getElementById('modal-action').innerHTML = getActionBadge(decision.action);
+            document.getElementById('modal-timestamp').textContent = new Date(decision.timestamp).toLocaleString();
+            document.getElementById('modal-confidence').textContent = decision.confidence ? `${decision.confidence}%` : 'N/A';
+            document.getElementById('modal-success').textContent = decision.success ? '✅ Success' : '❌ Failed';
+            
+            // Market data
+            document.getElementById('modal-price').textContent = decision.market_price ? `€${decision.market_price.toFixed(6)}` : 'N/A';
+            document.getElementById('modal-rsi').textContent = decision.rsi ? decision.rsi.toFixed(1) : 'N/A';
+            document.getElementById('modal-macd').textContent = decision.macd ? decision.macd.toFixed(4) : 'N/A';
+            document.getElementById('modal-volume').textContent = decision.volume ? decision.volume.toLocaleString() : 'N/A';
+            document.getElementById('modal-3month-avg').textContent = decision.three_month_avg ? `€${decision.three_month_avg.toFixed(6)}` : 'N/A';
+            
+            // Reason
+            document.getElementById('modal-reason').textContent = decision.reason || 'No reason provided';
+            
+            // Execution details (if available)
+            if (decision.execution_result) {
+                document.getElementById('modal-execution-section').style.display = 'block';
+                const execution = decision.execution_result;
+                let executionText = '';
+                
+                if (execution.success) {
+                    executionText = `✅ Successfully executed ${decision.action}`;
+                    if (execution.eur_amount) executionText += ` for €${execution.eur_amount.toFixed(2)}`;
+                    if (execution.crypto_amount) executionText += ` (${execution.crypto_amount.toFixed(6)} crypto)`;
+                } else {
+                    executionText = `❌ Failed to execute ${decision.action}`;
+                    if (execution.error) executionText += `: ${execution.error}`;
+                }
+                
+                document.getElementById('modal-execution').textContent = executionText;
+            } else {
+                document.getElementById('modal-execution-section').style.display = 'none';
+            }
+            
+            // Show modal
+            new bootstrap.Modal(document.getElementById('decisionModal')).show();
+        }
+
+        // Event listeners for trading decisions
+        document.getElementById('refresh-decisions').addEventListener('click', loadTradingDecisions);
+        document.getElementById('decision-action-filter').addEventListener('change', filterDecisions);
+        document.getElementById('decision-symbol-filter').addEventListener('change', filterDecisions);
+        document.getElementById('decision-days-filter').addEventListener('change', loadTradingDecisions);
+
+        // Load initial data when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            loadInitialData();
+            
+            // Refresh data every 30 seconds
+            setInterval(loadInitialData, 30000);
+        });
+    </script>
+</body>
+</html> 
