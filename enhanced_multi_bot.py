@@ -16,6 +16,8 @@ from data_fetcher import DataFetcher
 from trading_engine import TradingEngine
 from asset_config import get_portfolio, get_strategy, list_available_portfolios, list_available_strategies
 from coinbase_smart_allocation_bot import CoinbaseSmartAllocationBot
+from audit_trail import audit_trail
+from performance_monitor import performance_monitor, TradeRecord, PortfolioSnapshot
 
 # Ensure analysis folder exists
 ANALYSIS_FOLDER = "analysis"
@@ -207,7 +209,8 @@ class EnhancedMultiAssetBot:
                 if is_too_new_to_sell:
                     market_data['phase_instruction'] = f"MANAGEMENT PHASE: I'm managing existing positions. IMPORTANT: This position is only {position_age_hours:.1f} hours old (minimum {minimum_holding_hours}h required). You MUST NOT sell positions that are too new - focus on HOLD decisions for recently purchased assets."
                 else:
-                    market_data['phase_instruction'] = "MANAGEMENT PHASE: I'm managing existing positions. Focus on whether to SELL positions to free up cash for new opportunities, but only if technically justified."
+                    # Enhanced management phase instruction with specific technical criteria
+                    market_data['phase_instruction'] = "MANAGEMENT PHASE: Optimize portfolio by selling positions that are overbought (RSI >70), overvalued (above averages), or showing technical weakness. Hold positions that are still technically sound or undervalued. Focus on technical analysis, not just profit/loss."
             
             # Get LLM decision for this asset
             if not self.llm_client:
@@ -395,9 +398,19 @@ Technical Analysis Data for {len(all_crypto_data)} cryptocurrencies:
 TASK: Analyze the technical indicators (RSI, MACD, price vs averages) and identify which cryptocurrency has the strongest technical setup for potential growth.
 
 Focus on:
-- RSI levels (oversold = opportunity)
+- RSI levels (oversold <30 = opportunity, overbought >70 = avoid)
 - MACD signals (positive momentum)
-- Current price vs 3-month/weekly averages (undervalued = opportunity)
+- Current price vs 3-month/weekly averages (undervalued = opportunity, overvalued = avoid)
+
+PREFER assets that are:
+- Trading BELOW their 3-month average (discount)
+- Have RSI <50 (not overbought)
+- Show positive MACD momentum
+
+AVOID assets that are:
+- Trading ABOVE their 3-month average (premium)
+- Have RSI >70 (overbought)
+- Show negative MACD signals
 
 Respond with ONLY the symbol (e.g., "BTC/EUR") of the cryptocurrency with the best technical setup."""
 
@@ -549,32 +562,42 @@ Respond with ONLY the symbol (e.g., "BTC/EUR") of the cryptocurrency with the be
                 logger.info(f"📊 Current meaningful positions: {len(meaningful_positions)} worth €{total_meaningful_value:.2f}")
             
             # Use special investment analysis that picks ONE crypto (but exclude small positions we want to keep)
-            investment_result = await self.analyze_investment_opportunity(investable_cash, meaningful_positions)
-            if investment_result:
-                results.append(investment_result)
+            # Only proceed if we have enough cash to make a meaningful investment (≥€1)
+            if investable_cash >= 1.0:
+                investment_result = await self.analyze_investment_opportunity(investable_cash, meaningful_positions)
+                if investment_result:
+                    results.append(investment_result)
+            else:
+                logger.info(f"💰 INVESTMENT BLOCKED: €{investable_cash:.2f} is below €1.00 minimum investment threshold")
             return results
         else:
             # MANAGEMENT PHASE: Focus on existing positions, avoid unnecessary churning
             if existing_positions:
-                # Filter assets to only current holdings
-                held_symbols = set(existing_positions.keys())
+                # Filter positions to only those worth €1 or more (don't trade tiny positions)
+                tradeable_positions = {k: v for k, v in existing_positions.items() if v['eur_value'] >= 1.0}
+                
+                # Filter assets to only current holdings worth trading
+                held_symbols = set(tradeable_positions.keys())
                 assets_to_analyze = [asset for asset in self.assets if asset['symbol'] in held_symbols]
                 phase = "MANAGEMENT"
                 
                 # Enhanced logging for management phase
                 logger.info(f"📊 MANAGEMENT PHASE: €{investable_cash:.2f} investable cash (insufficient for new investments)")
-                logger.info(f"🎯 Managing {len(assets_to_analyze)} existing positions (avoiding churning)")
+                logger.info(f"🎯 Managing {len(assets_to_analyze)} tradeable positions (≥€1.00)")
                 logger.info(f"💰 Meaningful positions: {len(meaningful_positions)} worth €{total_meaningful_value:.2f}")
                 
-                # Log all positions for visibility
+                # Log all positions for visibility (including small ones for transparency)
                 for symbol, pos in existing_positions.items():
-                    status = "💰 MEANINGFUL" if pos['eur_value'] > 20 else "🤏 SMALL"
-                    profit_indicator = "📈" if pos.get('profit_loss_pct', 0) > 0 else "📉" if pos.get('profit_loss_pct', 0) < 0 else "➡️"
-                    logger.info(f"  {status}: {symbol} = €{pos['eur_value']:.2f} {profit_indicator} {pos.get('profit_loss_pct', 0):+.1f}%")
+                    if pos['eur_value'] >= 1.0:
+                        status = "💰 MEANINGFUL" if pos['eur_value'] > 20 else "📊 TRADEABLE"
+                        profit_indicator = "📈" if pos.get('profit_loss_pct', 0) > 0 else "📉" if pos.get('profit_loss_pct', 0) < 0 else "➡️"
+                        logger.info(f"  {status}: {symbol} = €{pos['eur_value']:.2f} {profit_indicator} {pos.get('profit_loss_pct', 0):+.1f}%")
+                    else:
+                        logger.info(f"  🤏 IGNORED: {symbol} = €{pos['eur_value']:.2f} (below €1.00 minimum)")
                 
                 # DEBUG: Log the filtering process
-                logger.info(f"🔍 MANAGEMENT DEBUG: Held symbols: {held_symbols}")
-                logger.info(f"🔍 MANAGEMENT DEBUG: Portfolio has {len(self.assets)} total assets")
+                logger.info(f"🔍 MANAGEMENT DEBUG: Total positions: {len(existing_positions)}")
+                logger.info(f"🔍 MANAGEMENT DEBUG: Tradeable positions (≥€1): {len(tradeable_positions)}")
                 logger.info(f"🔍 MANAGEMENT DEBUG: Assets to analyze: {[asset['symbol'] for asset in assets_to_analyze]}")
                 
             else:
@@ -658,8 +681,65 @@ Respond with ONLY the symbol (e.g., "BTC/EUR") of the cryptocurrency with the be
                             self.coinbase_bot.record_buy_order(symbol, approx_crypto_amount, buy_price)
                             logger.info(f"✅ Successfully invested ALL cash into {asset['name']}")
                             logger.info(f"📝 Recorded purchase: {approx_crypto_amount:.6f} {symbol} at €{buy_price:.6f} for holding period tracking")
+                            
+                            # AUDIT TRAIL: Log the successful BUY decision
+                            try:
+                                audit_trail.log_trading_decision(
+                                    symbol=symbol,
+                                    action='BUY',
+                                    decision_reason=decision.get('reason', 'Investment phase decision'),
+                                    market_data=market_data,
+                                    position_data=result.get('current_position'),
+                                    execution_result={
+                                        'success': True,
+                                        'eur_amount': eur_amount,
+                                        'crypto_amount': approx_crypto_amount,
+                                        'buy_price': buy_price,
+                                        'phase': 'INVESTMENT'
+                                    }
+                                )
+                            except Exception as e:
+                                logger.warning(f"Failed to log BUY decision to audit trail: {e}")
+                            
+                            # PERFORMANCE MONITOR: Record the trade
+                            try:
+                                trade_record = TradeRecord(
+                                    timestamp=datetime.now().isoformat(),
+                                    symbol=symbol,
+                                    action='BUY',
+                                    price=buy_price,
+                                    quantity=approx_crypto_amount,
+                                    value=eur_amount,
+                                    profit_loss=0,  # New position
+                                    profit_loss_pct=0,
+                                    reason=decision.get('reason', 'Investment phase decision'),
+                                    confidence=decision.get('confidence', 50),
+                                    rsi=market_data.get('rsi'),
+                                    macd=market_data.get('macd'),
+                                    volume=market_data.get('volume_24h')
+                                )
+                                performance_monitor.record_trade(trade_record)
+                            except Exception as e:
+                                logger.warning(f"Failed to record trade to performance monitor: {e}")
                         else:
                             logger.error(f"❌ Failed to invest in {asset['name']}")
+                            
+                            # AUDIT TRAIL: Log the failed BUY attempt
+                            try:
+                                audit_trail.log_trading_decision(
+                                    symbol=symbol,
+                                    action='BUY_FAILED',
+                                    decision_reason=decision.get('reason', 'Investment phase decision'),
+                                    market_data=market_data,
+                                    position_data=result.get('current_position'),
+                                    execution_result={
+                                        'success': False,
+                                        'eur_amount': eur_amount,
+                                        'error': 'Order placement failed'
+                                    }
+                                )
+                            except Exception as e:
+                                logger.warning(f"Failed to log failed BUY decision to audit trail: {e}")
                     else:
                         # REGULAR BUY: Check if we have enough capital for position sizing
                         if position_calc['actual_position_value'] > 0:
@@ -685,8 +765,44 @@ Respond with ONLY the symbol (e.g., "BTC/EUR") of the cryptocurrency with the be
                                 self.coinbase_bot.record_buy_order(symbol, approx_crypto_amount, buy_price)
                                 logger.info(f"✅ Successfully invested in {asset['name']}")
                                 logger.info(f"📝 Recorded purchase: {approx_crypto_amount:.6f} {symbol} at €{buy_price:.6f} for holding period tracking")
+                                
+                                # AUDIT TRAIL: Log the successful BUY decision
+                                try:
+                                    audit_trail.log_trading_decision(
+                                        symbol=symbol,
+                                        action='BUY',
+                                        decision_reason=decision.get('reason', 'Regular buy decision'),
+                                        market_data=market_data,
+                                        position_data=result.get('current_position'),
+                                        execution_result={
+                                            'success': True,
+                                            'eur_amount': eur_amount,
+                                            'crypto_amount': approx_crypto_amount,
+                                            'buy_price': buy_price,
+                                            'phase': 'MANAGEMENT'
+                                        }
+                                    )
+                                except Exception as e:
+                                    logger.warning(f"Failed to log BUY decision to audit trail: {e}")
                             else:
                                 logger.error(f"❌ Failed to invest in {asset['name']}")
+                                
+                                # AUDIT TRAIL: Log the failed BUY attempt
+                                try:
+                                    audit_trail.log_trading_decision(
+                                        symbol=symbol,
+                                        action='BUY_FAILED',
+                                        decision_reason=decision.get('reason', 'Regular buy decision'),
+                                        market_data=market_data,
+                                        position_data=result.get('current_position'),
+                                        execution_result={
+                                            'success': False,
+                                            'eur_amount': eur_amount,
+                                            'error': 'Order placement failed'
+                                        }
+                                    )
+                                except Exception as e:
+                                    logger.warning(f"Failed to log failed BUY decision to audit trail: {e}")
                         else:
                             logger.warning(f"Insufficient capital for {asset['name']}")
                 
@@ -729,14 +845,69 @@ Respond with ONLY the symbol (e.g., "BTC/EUR") of the cryptocurrency with the be
                         success = self.coinbase_bot.trading_engine.place_order(symbol, 'sell', amount, None)
                         if success:
                             logger.info(f"✅ Successfully liquidated {asset['name']}")
+                            
+                            # AUDIT TRAIL: Log the successful SELL decision
+                            try:
+                                audit_trail.log_trading_decision(
+                                    symbol=symbol,
+                                    action='SELL',
+                                    decision_reason=decision.get('reason', 'Technical analysis decision'),
+                                    market_data=market_data,
+                                    position_data=raw_position,
+                                    execution_result={
+                                        'success': True,
+                                        'crypto_amount': amount,
+                                        'eur_value': position_value,
+                                        'profit_loss_pct': profit_loss_pct,
+                                        'position_age_hours': position_age_hours,
+                                        'phase': 'MANAGEMENT'
+                                    }
+                                )
+                            except Exception as e:
+                                logger.warning(f"Failed to log SELL decision to audit trail: {e}")
                         else:
                             logger.error(f"❌ Failed to liquidate {asset['name']}")
+                            
+                            # AUDIT TRAIL: Log the failed SELL attempt
+                            try:
+                                audit_trail.log_trading_decision(
+                                    symbol=symbol,
+                                    action='SELL_FAILED',
+                                    decision_reason=decision.get('reason', 'Technical analysis decision'),
+                                    market_data=market_data,
+                                    position_data=raw_position,
+                                    execution_result={
+                                        'success': False,
+                                        'crypto_amount': amount,
+                                        'eur_value': position_value,
+                                        'error': 'Order placement failed'
+                                    }
+                                )
+                            except Exception as e:
+                                logger.warning(f"Failed to log failed SELL decision to audit trail: {e}")
                     else:
                         # This shouldn't happen in MANAGEMENT PHASE - log warning
                         logger.warning(f"⚠️ SELL decision for {asset['name']} but no existing position found. Skipping.")
                 
                 else:  # HOLD
                     logger.info(f"Holding {asset['name']} - no action taken")
+                    
+                    # AUDIT TRAIL: Log the HOLD decision
+                    try:
+                        audit_trail.log_trading_decision(
+                            symbol=asset['symbol'],
+                            action='HOLD',
+                            decision_reason=decision.get('reason', 'No action taken'),
+                            market_data=market_data,
+                            position_data=result.get('current_position'),
+                            execution_result={
+                                'success': True,
+                                'action': 'No trade executed',
+                                'reason': 'HOLD decision'
+                            }
+                        )
+                    except Exception as e:
+                        logger.warning(f"Failed to log HOLD decision to audit trail: {e}")
                 
             except Exception as e:
                 logger.error(f"Error executing trade for {asset['symbol']}: {e}")
@@ -759,7 +930,7 @@ Respond with ONLY the symbol (e.g., "BTC/EUR") of the cryptocurrency with the be
             # 2. Execute trades
             await self.execute_trades(analysis_results)
             
-            # 3. Log portfolio summary
+            # 3. Log portfolio summary and audit trail
             try:
                 # Get actual portfolio value from Coinbase
                 portfolio_value = self.coinbase_bot.trading_engine.get_account_balance()
@@ -767,7 +938,38 @@ Respond with ONLY the symbol (e.g., "BTC/EUR") of the cryptocurrency with the be
                 total_position_value = sum(pos['eur_value'] for pos in existing_positions.values())
                 total_pnl = sum(pos.get('profit_loss_eur', 0) for pos in existing_positions.values())
                 
+                # Get available cash
+                available_cash = self.coinbase_bot.get_eur_balance()
+                
                 logger.info(f"📊 Portfolio: €{portfolio_value:.2f} | Positions Value: €{total_position_value:.2f} | P&L: €{total_pnl:.2f} | Assets: {len(existing_positions)}")
+                
+                # AUDIT TRAIL: Log portfolio snapshot
+                try:
+                    audit_trail.log_portfolio_snapshot(
+                        portfolio_value=portfolio_value,
+                        positions=existing_positions,
+                        total_pnl=total_pnl,
+                        available_cash=available_cash
+                    )
+                except Exception as e:
+                    logger.warning(f"Failed to log portfolio snapshot to audit trail: {e}")
+                
+                # PERFORMANCE MONITOR: Record portfolio snapshot
+                try:
+                    portfolio_snapshot = PortfolioSnapshot(
+                        timestamp=datetime.now().isoformat(),
+                        total_value=portfolio_value,
+                        cash_balance=available_cash,
+                        positions_value=total_position_value,
+                        total_pnl=total_pnl,
+                        daily_pnl=0,  # Would need to calculate
+                        position_count=len(existing_positions),
+                        positions=existing_positions
+                    )
+                    performance_monitor.record_portfolio_snapshot(portfolio_snapshot)
+                except Exception as e:
+                    logger.warning(f"Failed to record portfolio snapshot to performance monitor: {e}")
+                    
             except Exception as e:
                 logger.warning(f"Could not get portfolio summary: {e}")
                 logger.info(f"📊 Portfolio: Unable to retrieve portfolio data")

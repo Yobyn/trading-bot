@@ -5,6 +5,7 @@ from typing import Dict, Any, Optional, List
 from aiohttp import ClientTimeout
 from loguru import logger
 from config import config
+from audit_trail import audit_trail
 
 class LLMClient:
     def __init__(self, base_url: Optional[str] = None, model: Optional[str] = None):
@@ -293,29 +294,29 @@ Respond with the asset symbol and your reasoning."""
         current_position = market_data.get('current_position', {})
         has_position = current_position.get('has_position', False)
         
-        # Build context-aware system prompt
+        # Build context-aware system prompt with improved trading logic
         if trading_phase == "INVESTMENT" and not has_position:
             # Investment phase, no current position - can only BUY or HOLD
             available_actions = """Available actions:
-        - BUY: Enter a long position with available cash
-        - HOLD: Skip this asset and look for better opportunities"""
-            context_instruction = "INVESTMENT PHASE: You're looking for new investments with available cash. Focus on whether this is a good BUY opportunity."
+        - BUY: Enter a long position with available cash (when price is below averages or RSI is oversold)
+        - HOLD: Skip this asset and look for better opportunities (when price is overvalued or RSI is overbought)"""
+            context_instruction = "INVESTMENT PHASE: Look for undervalued assets to buy. Prefer assets trading below their 3-month average or with oversold RSI (<30). Avoid overvalued assets trading above averages with overbought RSI (>70)."
             
         elif trading_phase == "INVESTMENT" and has_position:
             # Investment phase, has position - can add more, hold, or reduce
             available_actions = """Available actions:
-        - BUY: Add more to the existing position
-        - HOLD: Maintain current position size
-        - SELL: Reduce position size partially
-        - CLOSE: Close entire position"""
-            context_instruction = "INVESTMENT PHASE: You have available cash and an existing position. Consider whether to add more, maintain, or reduce the position."
+        - BUY: Add more to the existing position (when price is still undervalued)
+        - HOLD: Maintain current position size (when price is at fair value)
+        - SELL: Reduce position size partially (when price is overvalued or RSI overbought)
+        - CLOSE: Close entire position (when technical indicators strongly suggest reversal)"""
+            context_instruction = "INVESTMENT PHASE: You have available cash and an existing position. Consider whether to add more (if still undervalued), maintain (if at fair value), or reduce (if overvalued)."
             
         elif trading_phase == "MANAGEMENT" and has_position:
-            # Management phase, has position - focus on selling to free cash
+            # Management phase, has position - focus on optimal portfolio management
             available_actions = """Available actions:
-        - HOLD: Keep the current position
-        - SELL: Liquidate this position to free up cash"""
-            context_instruction = "MANAGEMENT PHASE: You have limited cash and need to manage existing positions. Focus on whether to SELL (liquidate) this position to free up cash for new opportunities."
+        - HOLD: Keep the current position (when technical indicators are neutral or favorable)
+        - SELL: Liquidate this position (when overbought, overvalued, or showing reversal signals)"""
+            context_instruction = "MANAGEMENT PHASE: Optimize portfolio by selling positions that are overbought (RSI >70), overvalued (above averages), or showing technical weakness. Hold positions that are still technically sound or undervalued."
             
         else:
             # Fallback - shouldn't happen in normal operation
@@ -323,11 +324,16 @@ Respond with the asset symbol and your reasoning."""
         - HOLD: No action"""
             context_instruction = "No clear trading context. Default to HOLD for safety."
         
-        system_prompt = f"""You are an expert trading bot. Analyze the market data and provide a trading decision.
+        system_prompt = f"""You are an expert trading bot. Analyze the market data and provide a trading decision based on technical analysis and price valuation.
         
         {available_actions}
         
         TRADING CONTEXT: {context_instruction}
+        
+        KEY DECISION FACTORS:
+        - SELL when: RSI >70 (overbought), price significantly above averages, or showing reversal signals
+        - BUY when: RSI <30 (oversold), price below averages (discount), or showing strong momentum
+        - HOLD when: RSI 30-70 (neutral), price near averages, or unclear signals
         
         Respond with ONLY the action and optionally a brief reason.
         Keep responses concise and actionable."""
@@ -389,6 +395,22 @@ Respond with the asset symbol and your reasoning."""
         else:
             price_vs_weekly = "No weekly data available"
         
+        # Get RSI for decision guidance
+        rsi_raw = market_data.get('rsi', 50)
+        try:
+            rsi = float(rsi_raw) if rsi_raw not in [None, 'Unknown', ''] else 50.0
+        except (ValueError, TypeError):
+            rsi = 50.0
+        
+        # Add RSI interpretation
+        rsi_status = ""
+        if rsi > 70:
+            rsi_status = "OVERBOUGHT - Consider selling"
+        elif rsi < 30:
+            rsi_status = "OVERSOLD - Consider buying"
+        else:
+            rsi_status = "NEUTRAL"
+        
         prompt = f"""Market Data Analysis:
         
         Symbol: {market_data.get('symbol', 'Unknown')}
@@ -397,9 +419,9 @@ Respond with the asset symbol and your reasoning."""
         # Add buy price and profit/loss info if available
         if buy_price is not None:
             try:
-                buy_price_float = float(buy_price) if buy_price not in [None, 'Unknown', ''] else 0
-                profit_loss_pct_float = float(profit_loss_pct) if profit_loss_pct not in [None, 'Unknown', ''] else 0
-                profit_loss_eur_float = float(profit_loss_eur) if profit_loss_eur not in [None, 'Unknown', ''] else 0
+                buy_price_float = float(buy_price) if buy_price is not None and buy_price not in ['Unknown', ''] else 0.0
+                profit_loss_pct_float = float(profit_loss_pct) if profit_loss_pct is not None and profit_loss_pct not in ['Unknown', ''] else 0.0
+                profit_loss_eur_float = float(profit_loss_eur) if profit_loss_eur is not None and profit_loss_eur not in ['Unknown', ''] else 0.0
                 
                 prompt += f"""
         Original Buy Price: €{buy_price_float:.6f}
@@ -426,7 +448,7 @@ Respond with the asset symbol and your reasoning."""
         - Current vs Weekly: {price_vs_weekly}
         
         TECHNICAL INDICATORS:
-        - RSI: {market_data.get('rsi', 'Unknown')}
+        - RSI: {rsi:.1f} ({rsi_status})
         - MACD: {market_data.get('macd', 'Unknown')}
         - Volume 24h: {market_data.get('volume_24h', 'Unknown')}
         - Moving Average (20): {market_data.get('ma_20', 'Unknown')}
@@ -484,6 +506,22 @@ Respond with the asset symbol and your reasoning."""
             "confidence": 0.8,
             "timestamp": market_data.get("timestamp")
         }
+        
+        # AUDIT TRAIL: Log the complete LLM interaction
+        try:
+            symbol = market_data.get('symbol', 'Unknown')
+            trading_phase = market_data.get('trading_phase', 'Unknown')
+            audit_trail.log_llm_interaction(
+                symbol=symbol,
+                system_prompt=system_prompt,
+                user_prompt=prompt,
+                llm_response=response,
+                parsed_decision=decision,
+                market_data=market_data,
+                trading_phase=trading_phase
+            )
+        except Exception as e:
+            logger.warning(f"Failed to log LLM interaction to audit trail: {e}")
         
         # Format decision for human-readable logging
         logger.info("🤖 Trading Decision:")
