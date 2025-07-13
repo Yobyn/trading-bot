@@ -290,6 +290,11 @@ def index():
     """Main dashboard page"""
     return render_template('dashboard.html')
 
+@app.route('/llm-reasoning')
+def llm_reasoning():
+    """LLM reasoning and decision analysis page"""
+    return render_template('llm_reasoning.html')
+
 @app.route('/api/portfolio')
 def api_portfolio():
     """API endpoint for portfolio data"""
@@ -332,6 +337,59 @@ def api_decisions():
     symbol = request.args.get('symbol')
     
     return jsonify(data_provider.get_recent_decisions(limit, days, action, symbol))
+
+@app.route('/api/llm-interactions')
+def api_llm_interactions():
+    """API endpoint for LLM interactions and reasoning"""
+    limit = request.args.get('limit', 20, type=int)
+    days = request.args.get('days', 7, type=int)
+    action = request.args.get('action')
+    symbol = request.args.get('symbol')
+    
+    try:
+        # Get LLM interactions from database
+        interactions = data_provider.audit_trail.get_recent_llm_interactions_db(
+            symbol=symbol if symbol and symbol != 'all' else None,
+            action=action if action and action != 'all' else None,
+            days=days,
+            limit=limit
+        )
+        
+        # Format the results for the frontend
+        formatted_interactions = []
+        for interaction in interactions:
+            parsed_decision = interaction.get('parsed_decision', {})
+            market_data = interaction.get('market_data', {})
+            
+            formatted_interactions.append({
+                'id': interaction.get('id'),
+                'timestamp': interaction.get('timestamp'),
+                'symbol': interaction.get('symbol'),
+                'trading_phase': interaction.get('trading_phase'),
+                'action': parsed_decision.get('action'),
+                'confidence': parsed_decision.get('confidence'),
+                'reason': parsed_decision.get('reason'),
+                'system_prompt': interaction.get('system_prompt'),
+                'user_prompt': interaction.get('user_prompt'),
+                'llm_response': interaction.get('llm_response'),
+                'market_data': {
+                    'current_price': market_data.get('current_price'),
+                    'three_month_avg': market_data.get('three_month_average'),
+                    'weekly_avg': market_data.get('weekly_average'),
+                    'rsi': market_data.get('rsi'),
+                    'macd': market_data.get('macd'),
+                    'volume_24h': market_data.get('volume_24h'),
+                    'has_position': market_data.get('current_position', {}).get('has_position', False),
+                    'position_value': market_data.get('current_position', {}).get('eur_value', 0),
+                    'profit_loss_pct': market_data.get('profit_loss_pct', 0)
+                }
+            })
+        
+        return jsonify(formatted_interactions)
+        
+    except Exception as e:
+        logger.error(f"Error getting LLM interactions: {e}")
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/api/bot/start', methods=['POST'])
 def api_bot_start():

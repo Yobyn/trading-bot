@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LLM Reasoning - Trading Bot Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .reasoning-card {
+            border-left: 4px solid #007bff;
+            transition: all 0.3s ease;
+        }
+        .reasoning-card:hover {
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        .action-buy { border-left-color: #28a745; }
+        .action-sell { border-left-color: #dc3545; }
+        .action-hold { border-left-color: #ffc107; }
+        
+        .confidence-bar {
+            height: 8px;
+            border-radius: 4px;
+            background: linear-gradient(90deg, #dc3545 0%, #ffc107 50%, #28a745 100%);
+            position: relative;
+        }
+        .confidence-indicator {
+            position: absolute;
+            top: -2px;
+            width: 4px;
+            height: 12px;
+            background: #000;
+            border-radius: 2px;
+        }
+        
+        .market-data-badge {
+            font-size: 0.8rem;
+            margin: 2px;
+        }
+        
+        .llm-response {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 15px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+            white-space: pre-wrap;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        
+        .prompt-section {
+            background: #e9ecef;
+            border-radius: 8px;
+            padding: 10px;
+            margin: 10px 0;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85rem;
+        }
+        
+        .filter-section {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .phase-badge {
+            font-size: 0.7rem;
+            padding: 3px 8px;
+        }
+        
+        .phase-investment { background-color: #e3f2fd; color: #1976d2; }
+        .phase-management { background-color: #f3e5f5; color: #7b1fa2; }
+        
+        .timestamp {
+            color: #6c757d;
+            font-size: 0.85rem;
+        }
+        
+        .collapsible-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease;
+        }
+        
+        .collapsible-content.show {
+            max-height: 1000px;
+        }
+        
+        .expand-btn {
+            cursor: pointer;
+            user-select: none;
+        }
+        
+        .navbar-brand {
+            font-weight: bold;
+        }
+        
+        .loading-spinner {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #6c757d;
+        }
+        
+        .empty-state i {
+            font-size: 4rem;
+            margin-bottom: 20px;
+            opacity: 0.5;
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="/">
+                <i class="fas fa-robot me-2"></i>Trading Bot Dashboard
+            </a>
+            <div class="navbar-nav ms-auto">
+                <a class="nav-link" href="/">
+                    <i class="fas fa-chart-line me-1"></i>Dashboard
+                </a>
+                <a class="nav-link active" href="/llm-reasoning">
+                    <i class="fas fa-brain me-1"></i>LLM Reasoning
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid mt-4">
+        <!-- Header -->
+        <div class="row mb-4">
+            <div class="col">
+                <h1><i class="fas fa-brain text-primary me-2"></i>LLM Decision Reasoning</h1>
+                <p class="text-muted">Detailed analysis of AI trading decisions and reasoning</p>
+            </div>
+        </div>
+
+        <!-- Filters -->
+        <div class="filter-section">
+            <div class="row">
+                <div class="col-md-3">
+                    <label for="symbolFilter" class="form-label">Symbol</label>
+                    <select class="form-select" id="symbolFilter">
+                        <option value="all">All Symbols</option>
+                        <option value="BTC/EUR">BTC/EUR</option>
+                        <option value="ETH/EUR">ETH/EUR</option>
+                        <option value="XRP/EUR">XRP/EUR</option>
+                        <option value="ADA/EUR">ADA/EUR</option>
+                        <option value="SOL/EUR">SOL/EUR</option>
+                        <option value="MATIC/EUR">MATIC/EUR</option>
+                        <option value="ANKR/EUR">ANKR/EUR</option>
+                        <option value="SHIB/EUR">SHIB/EUR</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label for="actionFilter" class="form-label">Action</label>
+                    <select class="form-select" id="actionFilter">
+                        <option value="all">All Actions</option>
+                        <option value="BUY">BUY</option>
+                        <option value="SELL">SELL</option>
+                        <option value="HOLD">HOLD</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label for="daysFilter" class="form-label">Time Period</label>
+                    <select class="form-select" id="daysFilter">
+                        <option value="1">Last 24 hours</option>
+                        <option value="3">Last 3 days</option>
+                        <option value="7" selected>Last 7 days</option>
+                        <option value="14">Last 14 days</option>
+                        <option value="30">Last 30 days</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label for="limitFilter" class="form-label">Number of Results</label>
+                    <select class="form-select" id="limitFilter">
+                        <option value="10">10 results</option>
+                        <option value="20" selected>20 results</option>
+                        <option value="50">50 results</option>
+                        <option value="100">100 results</option>
+                    </select>
+                </div>
+            </div>
+            <div class="row mt-3">
+                <div class="col">
+                    <button class="btn btn-primary" onclick="loadLLMInteractions()">
+                        <i class="fas fa-search me-1"></i>Apply Filters
+                    </button>
+                    <button class="btn btn-outline-secondary ms-2" onclick="resetFilters()">
+                        <i class="fas fa-undo me-1"></i>Reset
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Loading Spinner -->
+        <div class="loading-spinner" id="loadingSpinner">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="mt-2">Loading LLM interactions...</p>
+        </div>
+
+        <!-- Empty State -->
+        <div class="empty-state" id="emptyState" style="display: none;">
+            <i class="fas fa-brain"></i>
+            <h3>No LLM Interactions Found</h3>
+            <p>Start the trading bot to see AI decision reasoning appear here.</p>
+        </div>
+
+        <!-- LLM Interactions Container -->
+        <div id="llmInteractionsContainer">
+            <!-- Dynamic content will be loaded here -->
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let currentInteractions = [];
+
+        // Load LLM interactions on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            loadLLMInteractions();
+        });
+
+        async function loadLLMInteractions() {
+            const symbol = document.getElementById('symbolFilter').value;
+            const action = document.getElementById('actionFilter').value;
+            const days = document.getElementById('daysFilter').value;
+            const limit = document.getElementById('limitFilter').value;
+
+            // Show loading spinner
+            document.getElementById('loadingSpinner').style.display = 'block';
+            document.getElementById('emptyState').style.display = 'none';
+            document.getElementById('llmInteractionsContainer').innerHTML = '';
+
+            try {
+                const params = new URLSearchParams({
+                    symbol: symbol,
+                    action: action,
+                    days: days,
+                    limit: limit
+                });
+
+                const response = await fetch(`/api/llm-interactions?${params}`);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const interactions = await response.json();
+                currentInteractions = interactions;
+
+                // Hide loading spinner
+                document.getElementById('loadingSpinner').style.display = 'none';
+
+                if (interactions.length === 0) {
+                    document.getElementById('emptyState').style.display = 'block';
+                } else {
+                    renderLLMInteractions(interactions);
+                }
+
+            } catch (error) {
+                console.error('Error loading LLM interactions:', error);
+                document.getElementById('loadingSpinner').style.display = 'none';
+                document.getElementById('llmInteractionsContainer').innerHTML = `
+                    <div class="alert alert-danger">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        Error loading LLM interactions: ${error.message}
+                    </div>
+                `;
+            }
+        }
+
+        function renderLLMInteractions(interactions) {
+            const container = document.getElementById('llmInteractionsContainer');
+            
+            if (interactions.length === 0) {
+                container.innerHTML = `
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        No LLM interactions found for the selected filters.
+                    </div>
+                `;
+                return;
+            }
+
+            const html = interactions.map((interaction, index) => {
+                const actionClass = `action-${interaction.action?.toLowerCase() || 'unknown'}`;
+                const phaseClass = `phase-${interaction.trading_phase?.toLowerCase() || 'unknown'}`;
+                const timestamp = new Date(interaction.timestamp).toLocaleString();
+                const confidencePercentage = interaction.confidence || 0;
+                
+                return `
+                    <div class="card reasoning-card ${actionClass} mb-4">
+                        <div class="card-header">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h5 class="mb-1">
+                                        <i class="fas fa-coins me-2"></i>${interaction.symbol}
+                                        <span class="badge bg-${getActionColor(interaction.action)} ms-2">${interaction.action || 'UNKNOWN'}</span>
+                                        <span class="badge ${phaseClass} ms-2">${interaction.trading_phase || 'UNKNOWN'}</span>
+                                    </h5>
+                                    <small class="timestamp">${timestamp}</small>
+                                </div>
+                                <div class="text-end">
+                                    <div class="mb-1">Confidence: <strong>${confidencePercentage}%</strong></div>
+                                    <div class="confidence-bar position-relative" style="width: 100px;">
+                                        <div class="confidence-indicator" style="left: ${confidencePercentage}%;"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <!-- Market Data Summary -->
+                            <div class="mb-3">
+                                <h6><i class="fas fa-chart-bar me-1"></i>Market Context</h6>
+                                <div class="d-flex flex-wrap">
+                                    <span class="badge bg-info market-data-badge">Price: €${formatNumber(interaction.market_data?.current_price)}</span>
+                                    ${interaction.market_data?.rsi ? `<span class="badge bg-secondary market-data-badge">RSI: ${interaction.market_data.rsi}</span>` : ''}
+                                    ${interaction.market_data?.has_position ? `<span class="badge bg-warning market-data-badge">Position: €${formatNumber(interaction.market_data.position_value)}</span>` : '<span class="badge bg-light text-dark market-data-badge">No Position</span>'}
+                                    ${interaction.market_data?.profit_loss_pct ? `<span class="badge bg-${interaction.market_data.profit_loss_pct > 0 ? 'success' : 'danger'} market-data-badge">P&L: ${interaction.market_data.profit_loss_pct.toFixed(1)}%</span>` : ''}
+                                </div>
+                            </div>
+
+                            <!-- LLM Reasoning -->
+                            <div class="mb-3">
+                                <h6><i class="fas fa-brain me-1"></i>AI Reasoning</h6>
+                                <div class="alert alert-light">
+                                    <strong>${interaction.reason || 'No reasoning provided'}</strong>
+                                </div>
+                            </div>
+
+                            <!-- Expandable Details -->
+                            <div class="expand-btn" onclick="toggleDetails(${index})">
+                                <h6 class="mb-0">
+                                    <i class="fas fa-chevron-down me-1" id="chevron-${index}"></i>
+                                    View Detailed Analysis
+                                </h6>
+                            </div>
+                            
+                            <div class="collapsible-content" id="details-${index}">
+                                <hr>
+                                
+                                <!-- Full LLM Response -->
+                                <div class="mb-3">
+                                    <h6><i class="fas fa-robot me-1"></i>Complete LLM Response</h6>
+                                    <div class="llm-response">${escapeHtml(interaction.llm_response || 'No response available')}</div>
+                                </div>
+
+                                <!-- System Prompt -->
+                                <div class="mb-3">
+                                    <h6><i class="fas fa-cog me-1"></i>System Instructions</h6>
+                                    <div class="prompt-section">${escapeHtml(interaction.system_prompt || 'No system prompt available')}</div>
+                                </div>
+
+                                <!-- User Prompt -->
+                                <div class="mb-3">
+                                    <h6><i class="fas fa-user me-1"></i>Market Data Prompt</h6>
+                                    <div class="prompt-section">${escapeHtml(interaction.user_prompt || 'No user prompt available')}</div>
+                                </div>
+
+                                <!-- Detailed Market Data -->
+                                ${renderDetailedMarketData(interaction.market_data)}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            container.innerHTML = html;
+        }
+
+        function renderDetailedMarketData(marketData) {
+            if (!marketData) return '';
+            
+            return `
+                <div class="mb-3">
+                    <h6><i class="fas fa-chart-line me-1"></i>Detailed Market Data</h6>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <small class="text-muted">Price Information</small>
+                            <ul class="list-unstyled">
+                                <li>Current Price: <strong>€${formatNumber(marketData.current_price)}</strong></li>
+                                <li>3-Month Average: <strong>€${formatNumber(marketData.three_month_avg)}</strong></li>
+                                <li>Weekly Average: <strong>€${formatNumber(marketData.weekly_avg)}</strong></li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <small class="text-muted">Technical Indicators</small>
+                            <ul class="list-unstyled">
+                                <li>RSI: <strong>${marketData.rsi || 'N/A'}</strong></li>
+                                <li>MACD: <strong>${marketData.macd || 'N/A'}</strong></li>
+                                <li>24h Volume: <strong>${formatNumber(marketData.volume_24h)}</strong></li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function toggleDetails(index) {
+            const content = document.getElementById(`details-${index}`);
+            const chevron = document.getElementById(`chevron-${index}`);
+            
+            if (content.classList.contains('show')) {
+                content.classList.remove('show');
+                chevron.classList.remove('fa-chevron-up');
+                chevron.classList.add('fa-chevron-down');
+            } else {
+                content.classList.add('show');
+                chevron.classList.remove('fa-chevron-down');
+                chevron.classList.add('fa-chevron-up');
+            }
+        }
+
+        function getActionColor(action) {
+            switch(action?.toUpperCase()) {
+                case 'BUY': return 'success';
+                case 'SELL': return 'danger';
+                case 'HOLD': return 'warning';
+                default: return 'secondary';
+            }
+        }
+
+        function formatNumber(num) {
+            if (num === null || num === undefined) return 'N/A';
+            if (typeof num === 'string') return num;
+            if (num < 0.01) return num.toFixed(6);
+            if (num < 1) return num.toFixed(4);
+            if (num < 1000) return num.toFixed(2);
+            return num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        }
+
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function resetFilters() {
+            document.getElementById('symbolFilter').value = 'all';
+            document.getElementById('actionFilter').value = 'all';
+            document.getElementById('daysFilter').value = '7';
+            document.getElementById('limitFilter').value = '20';
+            loadLLMInteractions();
+        }
+
+        // Auto-refresh every 60 seconds
+        setInterval(loadLLMInteractions, 60000);
+    </script>
+</body>
+</html> 
